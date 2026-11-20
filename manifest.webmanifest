@@ -1,0 +1,17 @@
+{
+  "name": "El Compendio del Baluarte",
+  "short_name": "Compendio",
+  "description": "Listas y tareas personales, sin conexión y con datos locales.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e9e1d1",
+  "theme_color": "#26352a",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
