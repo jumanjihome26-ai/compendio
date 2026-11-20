@@ -1,4 +1,4 @@
-EL COMPENDIO DEL BALUARTE · V6.3 · VERSIÓN WEB PARA ANDROID E iPAD
+EL COMPENDIO DEL BALUARTE · V7 · VERSIÓN WEB PARA ANDROID E iPAD
 ================================================================
 
 QUÉ ES
@@ -52,3 +52,9 @@ NOTAS
   menú de compartir al exportar en iPad.
 
 V6.3: corregido el fallo por el que Chrome de Android mostraba la pantalla «Seleccionar carpeta». Si ya instalaste una versión anterior: abre la app dos veces con conexión para que se actualice (si no, desinstálala y vuelve a instalarla; tus datos están en el navegador, así que exporta antes una copia).
+
+V7 · NUEVA ESTÉTICA E ILUSTRACIONES
+- Sube TODO el contenido de esta carpeta a GitHub (Add file > Upload files), INCLUIDAS las carpetas «recursos» e «ilustraciones» (se pueden arrastrar las carpetas enteras). Sobrescribe lo anterior. Después abre la app dos veces con conexión.
+- Las 10 ilustraciones vienen incluidas. En «Nueva lista»/«Editar nombre» eliges una (o ninguna).
+- «＋ Añadir imagen» te deja elegir una imagen de tu dispositivo (galería/archivos); se reduce y se guarda SOLO en ese dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el MISMO nombre (o súbela a la carpeta «ilustraciones» de GitHub y pídeme actualizar ilustraciones.json).
+- El nombre de la ilustración viaja en el JSON de exportación; las imágenes no.

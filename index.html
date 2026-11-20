@@ -17,6 +17,7 @@
 <body>
   <section id="accessGate" class="access-gate">
     <div class="access-card">
+      <img class="jumanji-sign gate-sign" src="recursos/jumanji-home.webp" alt="Jumanji Home">
       <div class="access-mark">✦</div>
       <div class="eyebrow">BALUARTE DE KUTSUWANA</div>
       <h1 id="gateTitle">Conectar EL COMPENDIO DEL BALUARTE</h1>
@@ -25,7 +26,7 @@
         <strong>¿Qué permiso estás concediendo?</strong>
         <ul>
           <li>Acceso de lectura y escritura únicamente a la carpeta que selecciones y a su contenido.</li>
-          <li>El programa creará dentro DATOS, EXPORTACION y BACKUP si todavía no existen.</li>
+          <li>El programa creará dentro DATOS, EXPORTACION, BACKUP e ILUSTRACIONES si todavía no existen.</li>
           <li>No se concede acceso a la unidad completa ni a otras carpetas del ordenador.</li>
           <li>Los datos permanecen en tu equipo o en el USB. No se envían a Internet.</li>
         </ul>
@@ -37,7 +38,7 @@
   </section>
   <div class="grain"></div>
   <header class="topbar">
-    <div class="brandmark">✦</div>
+    <img class="jumanji-sign" src="recursos/jumanji-home.webp" alt="Jumanji Home">
     <div><div class="eyebrow">BALUARTE DE KUTSUWANA</div><div class="brand">El Compendio <span>del Baluarte</span></div></div>
     <div class="top-actions">
       <span id="saveStatus" class="save-status">● Carpeta no conectada</span>
@@ -80,6 +81,8 @@
       <div class="modal-kicker">NUEVO REGISTRO</div><h2 id="dialogTitle">Crear una lista</h2>
       <label for="listName">Nombre de la lista</label><input id="listName" maxlength="70" placeholder="Ej. Expedición de la semana" required>
       <label for="listDesc">Descripción <small>(opcional)</small></label><textarea id="listDesc" rows="2" maxlength="180" placeholder="Una nota para recordar el propósito..."></textarea>
+      <label>Ilustración <small>(opcional)</small></label>
+      <div class="illus-pick"><span id="illusPreview"></span><button type="button" class="small-btn" id="illusChoose">Elegir…</button><button type="button" class="small-btn" id="illusClear" hidden>Quitar</button></div>
       <div class="modal-actions"><button type="button" class="quiet-btn" id="cancelDialog">Cancelar</button><button class="primary-btn" value="save">Guardar en el Compendio</button></div>
     </form>
   </dialog>
@@ -90,6 +93,14 @@
       <label for="taskName">¿Qué hay que hacer?</label><input id="taskName" maxlength="140" placeholder="Escribe una tarea..." required>
       <div class="modal-actions"><button type="button" class="quiet-btn" id="cancelTask">Cancelar</button><button class="primary-btn" value="save">Añadir tarea</button></div>
     </form>
+  </dialog>
+
+  <dialog id="illusDialog" class="modal illus-modal">
+    <div class="modal-kicker">ILUSTRACIONES</div><h2>Elige un enanito</h2>
+    <div id="illusGrid" class="illus-grid"></div>
+    <p class="illus-help" id="illusHelp"></p>
+    <input type="file" id="illusFile" accept="image/*" hidden>
+    <div class="modal-actions"><button type="button" class="quiet-btn" id="illusAdd">＋ Añadir imagen</button><button type="button" class="primary-btn" id="illusClose">Cerrar</button></div>
   </dialog>
 
   <dialog id="menuDialog" class="modal menu-modal">

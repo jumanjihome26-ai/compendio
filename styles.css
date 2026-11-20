@@ -65,3 +65,37 @@ button{-webkit-tap-highlight-color:transparent}
 }
 @media(pointer:coarse) and (min-width:761px) and (max-width:1000px){.save-status{display:none}.brand{white-space:nowrap}}
 .brandmark{flex-shrink:0}
+
+/* ===== V7 · Estética: cartel JUMANJI HOME, menús verde oscuro, brújula de fondo e ilustraciones ===== */
+.jumanji-sign{height:62px;width:auto;display:block;flex-shrink:0;filter:drop-shadow(0 2px 5px #0006);border-radius:4px}
+.gate-sign{height:74px;margin:0 auto 14px}
+.sidebar{background:linear-gradient(180deg,#2d4232 0%,#233428 100%);border-right:1px solid #18241b;box-shadow:inset -8px 0 18px #0000002e}
+.side-label{color:var(--gold2)}
+.nav-item{color:#dcd9c3}.nav-item span{color:var(--gold2)}.nav-item b{color:#a9b393}
+.nav-item.active,.nav-item:hover{background:#40574a;color:#fbf5e3}
+.side-divider{background:#46604d}
+.new-list-side{border-color:#7f8f6a;color:#d9d2ad}.new-list-side:hover{background:#344a3a}
+.sidebar-note{border-top-color:#46604d;color:var(--gold2)}.sidebar-note span{color:var(--gold2)}.sidebar-note p{color:#d2cbae}
+.content{background:url(recursos/fondo-brujula.webp) center 44%/min(860px,94%) no-repeat}
+.medallion{display:inline-block;width:76px;height:76px;border-radius:50%;overflow:hidden;border:2px solid var(--gold);box-shadow:0 2px 9px #2a1f0a45;background:#e6dcc7;flex-shrink:0;position:relative}
+.medallion img{width:100%;height:100%;object-fit:cover;transform:scale(2.1);display:block}
+.medallion.big{width:98px;height:98px}
+.medallion.missing{display:inline-grid;place-items:center;color:#9b895d;font-size:26px}
+.card-top{align-items:flex-start}
+.illus-pick{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}.illus-pick .medallion{width:60px;height:60px}.illus-none{font-size:12px;color:#998d74}
+.illus-modal{width:min(580px,calc(100% - 24px));max-height:88vh;overflow:auto}
+.illus-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.illus-cell{position:relative}
+.illus-tile{width:100%;border:2px solid #d5c8ac;background:#f8f3e8;border-radius:6px;padding:5px;cursor:pointer;text-align:center;color:#5e594a;display:flex;flex-direction:column;gap:5px;align-items:center}
+.illus-tile b{font:700 10px Arial;letter-spacing:.4px;text-transform:uppercase;overflow-wrap:anywhere}
+.illus-tile.sel{border-color:var(--forest);box-shadow:0 0 0 2px #26352a33;background:#eef0e0}
+.illus-img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;display:block}
+.illus-img.none{display:grid;place-items:center;background:#ece3cf;font-size:32px;color:#9b895d}
+.illus-del{position:absolute;top:3px;right:3px;width:26px;height:26px;border-radius:50%;border:0;background:#26352ae6;color:#fff;cursor:pointer;font-size:16px;line-height:1}
+.illus-help{font-size:11px;color:#8b8069;line-height:1.5;margin:12px 0 0}
+@media(max-width:760px){
+  .jumanji-sign{height:50px}
+  .medallion{width:66px;height:66px}.medallion.big{width:74px;height:74px}
+  .content{background-size:min(560px,130%);background-position:center 30%}
+  .sidebar{box-shadow:none}
+}

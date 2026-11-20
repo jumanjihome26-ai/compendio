@@ -68,6 +68,7 @@ async function initialiseWeb(){
   }
   lists=Array.isArray(loaded.lists)?loaded.lists:[];
   templates=Array.isArray(loaded.templates)?loaded.templates:[];
+  await loadIllustrations();
   render();
   document.body.classList.remove("app-locked");
   $("accessGate").hidden=true;
@@ -135,6 +136,7 @@ async function initialiseFolders(handle){
   dataDirHandle=await rootHandle.getDirectoryHandle("DATOS",{create:true});
   exportDirHandle=await rootHandle.getDirectoryHandle("EXPORTACION",{create:true});
   backupDirHandle=await rootHandle.getDirectoryHandle("BACKUP",{create:true});
+  try{illusDirHandle=await rootHandle.getDirectoryHandle("ILUSTRACIONES",{create:true});await loadIllustrations();}catch(e){console.warn("ILUSTRACIONES:",e);}
   const dataFile=await dataDirHandle.getFileHandle("Compendio-del-Baluarte.json",{create:true});
   const file=await dataFile.getFile();
   if(file.size===0){await writeHandle(dataFile,EMPTY_DATA);}
@@ -273,6 +275,83 @@ function renderNav(){
   nav.querySelectorAll("[data-list]").forEach(b=>b.onclick=()=>openList(b.dataset.list));
   $("allCount").textContent=lists.length;$("templateCount").textContent=templates.length;
 }
+
+// ===== V7 · ILUSTRACIONES POR LISTA =====
+// Cada lista puede guardar un campo OPCIONAL `illustration` (nombre del archivo de imagen). Es un campo nuevo y compatible:
+// los JSON anteriores siguen leyéndose igual. Las imágenes viven FUERA del JSON:
+//  · Windows: carpeta ILUSTRACIONES del proyecto (la rellenas tú).  · Móvil/iPad: las incluidas en la app + las que añadas en el dispositivo.
+const IMG_EXT=/\.(png|jpe?g|webp|gif|svg|avif)$/i;
+const ILLUS_FOCUS={ALMA:[62,40],MECARTI:[65,40],RARITO:[38,40],VOCECITA:[38,33],MCGIVER:[57,35],PYTHI:[43,40],PLANI:[43,46],REPITE:[47,41],RESOPLON:[51,34],"REGISTRO-DE-LECTURAS":[35,40]};
+let illus=new Map(),illusUrls=[],illusDirHandle=null,imgDB=null,pendingIllus="";
+const illusBase=n=>String(n||"").replace(/\.[^.]+$/,"");
+const illusLabel=n=>illusBase(n).replace(/[-_]+/g," ");
+const illusFocus=n=>ILLUS_FOCUS[illusBase(n).toUpperCase()]||[50,32];
+function illusMedallion(name,cls=""){
+  if(!name)return "";
+  const it=illus.get(name);
+  if(!it)return `<span class="medallion missing ${cls}" title="Ilustración «${escapeHTML(illusLabel(name))}» no disponible en este dispositivo">✧</span>`;
+  const [x,y]=illusFocus(name);
+  return `<span class="medallion ${cls}" title="${escapeHTML(illusLabel(name))}"><img src="${it.url}" alt="" style="object-position:${x}% ${y}%;transform-origin:${x}% ${y}%"></span>`;
+}
+function openImgDB(){return new Promise((res,rej)=>{if(imgDB)return res(imgDB);if(!window.indexedDB)return rej(new Error("IndexedDB no disponible"));const q=indexedDB.open("CompendioIlustraciones",1);q.onupgradeneeded=()=>q.result.createObjectStore("images");q.onsuccess=()=>{imgDB=q.result;res(imgDB);};q.onerror=()=>rej(q.error);});}
+async function imgOp(mode,fn){const db=await openImgDB();return new Promise((res,rej)=>{const tx=db.transaction("images",mode);let r;try{r=fn(tx.objectStore("images"));}catch(e){rej(e);return;}tx.oncomplete=()=>res(r?r.result:undefined);tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error);});}
+const imgKeys=()=>imgOp("readonly",s=>s.getAllKeys());
+const imgGet=k=>imgOp("readonly",s=>s.get(k));
+const imgPut=(k,v)=>imgOp("readwrite",s=>s.put(v,k));
+const imgDel=k=>imgOp("readwrite",s=>s.delete(k));
+async function loadIllustrations(){
+  illusUrls.forEach(u=>{try{URL.revokeObjectURL(u);}catch{}});illusUrls=[];
+  const m=new Map();
+  try{
+    if(!WEB_MODE){
+      if(illusDirHandle)for await(const [n,h] of illusDirHandle.entries()){if(h.kind==="file"&&IMG_EXT.test(n)){try{const u=URL.createObjectURL(await h.getFile());illusUrls.push(u);m.set(n,{name:n,url:u,user:false});}catch{}}}
+    }else{
+      try{const r=await fetch("ilustraciones/ilustraciones.json");if(r.ok){for(const n of await r.json())if(typeof n==="string"&&IMG_EXT.test(n))m.set(n,{name:n,url:"ilustraciones/"+encodeURIComponent(n),user:false});}}catch{}
+      try{for(const k of await imgKeys()){const v=await imgGet(k);if(v&&v.data){const u=URL.createObjectURL(new Blob([v.data],{type:v.type||"image/jpeg"}));illusUrls.push(u);m.set(k,{name:k,url:u,user:true});}}}catch{}
+    }
+  }catch(e){console.warn("Ilustraciones:",e);}
+  illus=new Map([...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],"es")));
+}
+function loadImageFile(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file);const i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i);};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error("No se pudo leer la imagen."));};i.src=u;});}
+async function addIllustration(file){
+  if(!file)return null;
+  if(!/^image\//.test(file.type||"")&&!IMG_EXT.test(file.name||""))throw new Error("El archivo elegido no es una imagen.");
+  const base=illusBase(file.name).replace(/[\\/:*?"<>|]+/g,"").trim().slice(0,50)||"ILUSTRACION";
+  let name;
+  if(WEB_MODE){
+    name=base+".jpg";
+    if(illus.get(name)&&!confirm(`Ya existe una ilustración llamada «${name}». ¿Sustituirla?`))return null;
+    const im=await loadImageFile(file);const k=Math.min(1,760/Math.max(im.naturalWidth,im.naturalHeight));
+    const c=document.createElement("canvas");c.width=Math.max(1,Math.round(im.naturalWidth*k));c.height=Math.max(1,Math.round(im.naturalHeight*k));
+    const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);cx.drawImage(im,0,0,c.width,c.height);
+    const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+    await imgPut(name,{type:"image/jpeg",data:await blob.arrayBuffer()});
+  }else{
+    if(!illusDirHandle)throw new Error("La carpeta ILUSTRACIONES no está disponible.");
+    const ext=(file.name.match(/\.[^.]+$/)||[".png"])[0].toLowerCase();name=base+ext;
+    const exists=await illusDirHandle.getFileHandle(name).then(()=>true,()=>false);
+    if(exists&&!confirm(`Ya existe «${name}» en la carpeta ILUSTRACIONES. ¿Sustituirla?`))return null;
+    const fh=await illusDirHandle.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(file);await w.close();
+  }
+  await loadIllustrations();return name;
+}
+function paintIllusPreview(){$("illusPreview").innerHTML=pendingIllus?illusMedallion(pendingIllus,"big"):'<span class="illus-none">Sin ilustración</span>';$("illusClear").hidden=!pendingIllus;}
+async function openIllusPicker(){
+  await loadIllustrations();
+  const cells=[`<div class="illus-cell"><button type="button" class="illus-tile${pendingIllus?"":" sel"}" data-pick=""><span class="illus-img none">∅</span><b>Sin ilustración</b></button></div>`];
+  for(const it of illus.values()){const [x,y]=illusFocus(it.name);cells.push(`<div class="illus-cell"><button type="button" class="illus-tile${it.name===pendingIllus?" sel":""}" data-pick="${escapeHTML(it.name)}"><img class="illus-img" src="${it.url}" alt="" style="object-position:${x}% ${y}%"><b>${escapeHTML(illusLabel(it.name))}</b></button>${it.user?`<button type="button" class="illus-del" data-del="${escapeHTML(it.name)}" title="Quitar esta imagen del dispositivo" aria-label="Quitar imagen">×</button>`:""}</div>`);}
+  $("illusGrid").innerHTML=cells.join("");
+  $("illusHelp").textContent=WEB_MODE?"Pulsa «Añadir imagen» para incluir tus propias ilustraciones; se guardan solo en este dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el mismo nombre.":"Puedes añadir imágenes con el botón, o copiarlas directamente a la carpeta ILUSTRACIONES del proyecto (png, jpg, webp) y volver a abrir este selector.";
+  $("illusGrid").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{pendingIllus=b.dataset.pick;paintIllusPreview();$("illusDialog").close();});
+  $("illusGrid").querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const n=b.dataset.del;if(!confirm(`¿Quitar la imagen «${n}» de este dispositivo? Las listas que la usen mostrarán un círculo vacío hasta que añadas otra con el mismo nombre.`))return;try{await imgDel(n);}catch(err){alert("No se pudo quitar: "+err.message);}openIllusPicker();});
+  if(!$("illusDialog").open)$("illusDialog").showModal();
+}
+$("illusChoose").onclick=()=>openIllusPicker();
+$("illusClear").onclick=()=>{pendingIllus="";paintIllusPreview();};
+$("illusClose").onclick=()=>$("illusDialog").close();
+$("illusAdd").onclick=()=>$("illusFile").click();
+$("illusFile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const n=await addIllustration(f);if(n){pendingIllus=n;paintIllusPreview();await openIllusPicker();toast("Imagen añadida: "+n);}}catch(err){alert("No se pudo añadir la imagen: "+err.message);}};
+
 function render(){
   renderNav();const area=$("listArea");
   if(currentView==="list"){const l=lists.find(x=>x.id===currentListId);if(!l){currentView="all";render();return;}renderDetail(l);return;}
@@ -285,7 +364,7 @@ function render(){
     area.innerHTML=`<div class="empty"><div class="empty-mark">❧</div><h2>${isTemplates?"Todavía no hay plantillas":"El Compendio espera su primer registro"}</h2><p>${isTemplates?"Guarda cualquier lista como plantilla para reutilizarla.":"Toda expedición comienza con una primera anotación."}</p><button class="primary-btn" id="emptyCreate">${isTemplates?"Ir a mis listas":"＋ Crear mi primera lista"}</button></div>`;
     $("emptyCreate").onclick=()=>{if(isTemplates){currentView="all";render();}else openListDialog();};return;
   }
-  area.innerHTML=`<div class="list-grid">${data.map(l=>{const c=counts(l);return `<article class="list-card" data-card="${l.id}"><div class="card-top"><span class="card-symbol">✧</span><button class="dots" data-menu="${l.id}" title="Opciones">⋯</button></div><h3>${escapeHTML(l.name)}</h3><p>${escapeHTML(l.description||"Sin descripción")}</p><div class="progress-row"><span>${isTemplates?"PLANTILLA":`${c.done} de ${c.total} tareas`}</span><span>${isTemplates?l.tasks.length+" tareas":c.pct+"%"}</span></div><div class="progress-track"><div class="progress-fill" style="width:${isTemplates?0:c.pct}%"></div></div></article>`}).join("")}</div>`;
+  area.innerHTML=`<div class="list-grid">${data.map(l=>{const c=counts(l);return `<article class="list-card" data-card="${l.id}"><div class="card-top">${l.illustration?illusMedallion(l.illustration):'<span class="card-symbol">✧</span>'}<button class="dots" data-menu="${l.id}" title="Opciones">⋯</button></div><h3>${escapeHTML(l.name)}</h3><p>${escapeHTML(l.description||"Sin descripción")}</p><div class="progress-row"><span>${isTemplates?"PLANTILLA":`${c.done} de ${c.total} tareas`}</span><span>${isTemplates?l.tasks.length+" tareas":c.pct+"%"}</span></div><div class="progress-track"><div class="progress-fill" style="width:${isTemplates?0:c.pct}%"></div></div></article>`}).join("")}</div>`;
   area.querySelectorAll("[data-card]").forEach(c=>c.onclick=e=>{if(e.target.closest("[data-menu]"))return;if(isTemplates)useTemplate(c.dataset.card);else openList(c.dataset.card);});
   area.querySelectorAll("[data-menu]").forEach(b=>b.onclick=e=>{e.stopPropagation();cardMenu(b.dataset.menu,isTemplates);});
 }
@@ -316,7 +395,7 @@ function openList(id){currentView="list";currentListId=id;render();}
 function renderDetail(l){
   $("viewEyebrow").textContent="REGISTRO DE EXPEDICIÓN";$("viewTitle").textContent=l.name;$("viewSubtitle").textContent=l.description||"Cada tarea completada es un paso más en el camino.";
   const c=counts(l);
-  $("listArea").innerHTML=`<div class="detail-head"><button class="back-btn" id="backBtn">← Volver</button><div style="min-width:0"><h2>${escapeHTML(l.name)}</h2><p class="detail-desc">${escapeHTML(l.description||"Registro de tareas")}</p></div><div class="detail-actions"><button class="small-btn" id="editList">Editar nombre</button><button class="small-btn" id="saveTemplate">Guardar como plantilla</button><button class="small-btn" id="duplicateList">Duplicar</button><button class="small-btn" id="resetList">Reiniciar tareas</button></div></div><div class="progress-row" style="margin:0 2px 8px"><span>AVANCE DE LA EXPEDICIÓN</span><span>${c.done}/${c.total} · ${c.pct}%</span></div><div class="progress-track" style="height:5px;margin-bottom:17px"><div class="progress-fill" style="width:${c.pct}%"></div></div><div class="task-panel">${l.tasks.length?l.tasks.map(t=>`<div class="task-row ${t.done?"done":""}" data-task-row="${t.id}"><input class="task-check" type="checkbox" data-check="${t.id}" ${t.done?"checked":""}><span class="task-text">${escapeHTML(t.text)}</span><button class="small-btn edit-task" data-edit-task="${t.id}" title="Editar tarea" aria-label="Editar tarea">✎</button><button class="delete-task" data-delete="${t.id}" title="Eliminar tarea">×</button></div>`).join(""):`<div class="empty" style="border:0;padding:28px 12px;background:transparent"><div class="empty-mark">✧</div><p>Esta expedición aún no tiene tareas.</p></div>`}</div><form class="add-task" id="addTaskForm"><input id="newTask" maxlength="140" placeholder="Añadir una nueva tarea..." autocomplete="off"><button class="primary-btn">＋ Añadir</button></form>`;
+  $("listArea").innerHTML=`<div class="detail-head"><button class="back-btn" id="backBtn">← Volver</button>${l.illustration?illusMedallion(l.illustration,"big"):""}<div style="min-width:0"><h2>${escapeHTML(l.name)}</h2><p class="detail-desc">${escapeHTML(l.description||"Registro de tareas")}</p></div><div class="detail-actions"><button class="small-btn" id="editList">Editar nombre</button><button class="small-btn" id="saveTemplate">Guardar como plantilla</button><button class="small-btn" id="duplicateList">Duplicar</button><button class="small-btn" id="resetList">Reiniciar tareas</button></div></div><div class="progress-row" style="margin:0 2px 8px"><span>AVANCE DE LA EXPEDICIÓN</span><span>${c.done}/${c.total} · ${c.pct}%</span></div><div class="progress-track" style="height:5px;margin-bottom:17px"><div class="progress-fill" style="width:${c.pct}%"></div></div><div class="task-panel">${l.tasks.length?l.tasks.map(t=>`<div class="task-row ${t.done?"done":""}" data-task-row="${t.id}"><input class="task-check" type="checkbox" data-check="${t.id}" ${t.done?"checked":""}><span class="task-text">${escapeHTML(t.text)}</span><button class="small-btn edit-task" data-edit-task="${t.id}" title="Editar tarea" aria-label="Editar tarea">✎</button><button class="delete-task" data-delete="${t.id}" title="Eliminar tarea">×</button></div>`).join(""):`<div class="empty" style="border:0;padding:28px 12px;background:transparent"><div class="empty-mark">✧</div><p>Esta expedición aún no tiene tareas.</p></div>`}</div><form class="add-task" id="addTaskForm"><input id="newTask" maxlength="140" placeholder="Añadir una nueva tarea..." autocomplete="off"><button class="primary-btn">＋ Añadir</button></form>`;
   $("backBtn").onclick=()=>{currentView="all";currentListId=null;render();};
   $("editList").onclick=()=>openListDialog(l);$("saveTemplate").onclick=()=>saveTemplate(l);$("duplicateList").onclick=()=>duplicateList(l);
   $("resetList").onclick=async()=>{
@@ -355,13 +434,13 @@ function renderDetail(l){
 }
 function openListDialog(l=null){
   editingId=l?.id||null;$("dialogTitle").textContent=l?"Editar lista":"Crear una lista";
-  $("listName").value=l?.name||"";$("listDesc").value=l?.description||"";$("listDialog").showModal();$("listName").focus();
+  $("listName").value=l?.name||"";$("listDesc").value=l?.description||"";pendingIllus=l?.illustration||"";paintIllusPreview();$("listDialog").showModal();$("listName").focus();
 }
 $("listForm").onsubmit=async e=>{
   e.preventDefault();const name=$("listName").value.trim();if(!name)return;
   let l=editingId?lists.find(x=>x.id===editingId):null;
-  if(l){l.name=name;l.description=$("listDesc").value.trim();l.updatedAt=new Date().toISOString();}
-  else{l={id:uid(),name,description:$("listDesc").value.trim(),createdAt:new Date().toISOString(),tasks:[]};lists.push(l);}
+  if(l){l.name=name;l.description=$("listDesc").value.trim();if(pendingIllus)l.illustration=pendingIllus;else delete l.illustration;l.updatedAt=new Date().toISOString();}
+  else{l={id:uid(),name,description:$("listDesc").value.trim(),createdAt:new Date().toISOString(),tasks:[]};if(pendingIllus)l.illustration=pendingIllus;lists.push(l);}
   await saveData();$("listDialog").close();currentView=editingId?"list":"all";currentListId=editingId||null;render();toast(editingId?"Registro actualizado.":"Lista creada.");
 };
 $("cancelDialog").onclick=()=>$("listDialog").close();
@@ -431,7 +510,7 @@ async function processImportFile(file){
       const key=normalName(imported.name);
       let i=key?listIndexByName.get(key):undefined;
       if(i===undefined)i=lists.findIndex(x=>x.id===imported.id);
-      if(i>=0){lists[i]=imported;if(key)listIndexByName.set(key,i);report.updatedLists.push(imported.name||"Lista sin nombre");}
+      if(i>=0){if(!imported.illustration&&lists[i].illustration)imported.illustration=lists[i].illustration;lists[i]=imported;if(key)listIndexByName.set(key,i);report.updatedLists.push(imported.name||"Lista sin nombre");}
       else{const newIndex=lists.length;lists.push(imported);if(key)listIndexByName.set(key,newIndex);report.newLists.push(imported.name||"Lista sin nombre");}
     }
     // Las plantillas mantienen su comportamiento anterior: actualización por identificador.
