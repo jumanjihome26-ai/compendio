@@ -53,7 +53,7 @@ function pickOption(title,options){
     const d=$("menuDialog");$("menuTitle").textContent=title;const box=$("menuOptions");box.innerHTML="";let chosen=null;
     options.forEach(o=>{const b=document.createElement("button");b.type="button";b.className="menu-opt"+(o.danger?" danger":"");b.textContent=o.label;b.onclick=()=>{chosen=o.value;d.close();};box.appendChild(b);});
     d.onclose=()=>resolve(chosen);
-    d.onclick=e=>{const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();};
+    d.onclick=e=>{if(e.target!==d)return;const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();};
     $("menuCancel").onclick=()=>d.close();
     d.showModal();
   });
@@ -110,13 +110,31 @@ async function webBackup(){
   const r=await delivery;
   toast("¡COPIA DE SEGURIDAD COMPLETADA!\nCopia interna guardada: "+name+(r==="cancelled"?"":(r==="shared"?"\nArchivo compartido.":"\nArchivo descargado en tu dispositivo.")));
 }
-async function chooseWebRestoreSource(){
-  const keys=(await idbKeys("backups")).sort().reverse().slice(0,8);
-  if(!keys.length)return await chooseJSONFile("restore");
-  const choice=await pickOption("Restaurar una copia",[{label:"Elegir un archivo del dispositivo…",value:"__file__"},...keys.map(k=>({label:"Copia interna: "+k.replace(/^BK_/,"").replace(/\.json$/,""),value:k}))]);
-  if(!choice)return null;
-  if(choice==="__file__")return await chooseJSONFile("restore");
-  return {name:choice,text:()=>idbGet("backups",choice)};
+function chooseWebRestoreSource(){
+  // V7.1 · iPad/iOS solo abre el selector de archivos si input.click() ocurre DENTRO del toque del usuario
+  // (sin esperas ni cierres de ventana por medio). Por eso el botón de elegir archivo hace el clic de forma síncrona
+  // y las copias internas se cargan después, sin bloquear la apertura.
+  return new Promise(resolve=>{
+    const d=$("menuDialog"),box=$("menuOptions");
+    $("menuTitle").textContent="Restaurar una copia";box.innerHTML="";
+    let done=false;const finish=v=>{if(done)return;done=true;resolve(v);};
+    const input=document.createElement("input");input.type="file";input.hidden=true; // sin «accept»: algunos móviles ocultan los .json
+    input.onchange=()=>{const f=input.files[0]||null;finish(f);if(d.open)d.close();};
+    d.appendChild(input);
+    const fileBtn=document.createElement("button");fileBtn.type="button";fileBtn.className="menu-opt";fileBtn.textContent="Elegir un archivo del dispositivo…";
+    fileBtn.onclick=()=>input.click(); // síncrono, dentro del gesto
+    box.appendChild(fileBtn);
+    idbKeys("backups").then(keys=>{
+      keys.sort().reverse().slice(0,8).forEach(k=>{
+        const b=document.createElement("button");b.type="button";b.className="menu-opt";b.textContent="Copia interna: "+k.replace(/^BK_/,"").replace(/\.json$/,"");
+        b.onclick=()=>{finish({name:k,text:()=>idbGet("backups",k)});d.close();};box.appendChild(b);
+      });
+    }).catch(()=>{});
+    d.onclose=()=>{finish(null);input.remove();};
+    d.onclick=e=>{if(e.target!==d)return;const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();};
+    $("menuCancel").onclick=()=>d.close();
+    d.showModal();
+  });
 }
 let toastTimer=null; function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),5200);}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
