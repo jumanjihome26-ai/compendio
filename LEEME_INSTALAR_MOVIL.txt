@@ -1,4 +1,4 @@
-EL COMPENDIO DEL BALUARTE · V6.1 · VERSIÓN WEB PARA ANDROID E iPAD
+EL COMPENDIO DEL BALUARTE · V6.3 · VERSIÓN WEB PARA ANDROID E iPAD
 ================================================================
 
 QUÉ ES
@@ -50,3 +50,5 @@ NOTAS
 - Android e iPad: probado con navegador móvil emulado (guardado, recarga, exportar, importar,
   copias, restaurar, sin conexión). Falta la prueba real en TUS dispositivos, sobre todo el
   menú de compartir al exportar en iPad.
+
+V6.3: corregido el fallo por el que Chrome de Android mostraba la pantalla «Seleccionar carpeta». Si ya instalaste una versión anterior: abre la app dos veces con conexión para que se actualice (si no, desinstálala y vuelve a instalarla; tus datos están en el navegador, así que exporta antes una copia).

@@ -10,8 +10,21 @@ const EMPTY_DATA={format:"compendio-baluarte",version:1,exportedAt:null,lists:[]
 // Donde no existe showDirectoryPicker (Android, iPad/Safari, Firefox...) los datos se guardan en el
 // almacenamiento del navegador (IndexedDB) con la MISMA estructura JSON, y se pasan entre
 // dispositivos con Exportar / Importar. Para forzarlo en escritorio: index.html?modo=navegador
-const WEB_MODE=!window.showDirectoryPicker||/[?&]modo=navegador\b/.test(location.search);
+// V6.3: algunos Chrome de Android SÍ ofrecen showDirectoryPicker, pero el modo carpeta es solo para ordenador.
+// Móvil/tablet = teléfono o tableta (por el agente de usuario, o por tener puntero táctil y ningún ratón).
+const IS_MOBILE_DEVICE=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(navigator.userAgentData&&navigator.userAgentData.mobile===true)||(!/Windows/i.test(navigator.userAgent)&&!!window.matchMedia&&matchMedia("(pointer:coarse)").matches&&!matchMedia("(any-pointer:fine)").matches);
+const WEB_MODE=!window.showDirectoryPicker||IS_MOBILE_DEVICE||/[?&]modo=navegador\b/.test(location.search);
 let webDB=null;
+// V6.2 · Cada copia del Compendio recuerda SU carpeta. Chrome comparte el almacén entre todos los
+// index.html abiertos desde el disco; por eso la clave lleva el identificador de la copia (instancia.js)
+// y, además, se comprueba que la carpeta elegida contiene ese mismo identificador.
+const INSTANCE=window.COMPENDIO_INSTANCE||"sin-instancia";
+const HANDLE_KEY="root:"+INSTANCE;
+async function folderBelongsToThisCopy(handle){
+  if(INSTANCE==="sin-instancia")return true;
+  try{const fh=await handle.getFileHandle("instancia.js");const text=await (await fh.getFile()).text();return text.includes('"'+INSTANCE+'"');}
+  catch{return false;}
+}
 function openWebDB(){return new Promise((resolve,reject)=>{if(webDB)return resolve(webDB);if(!window.indexedDB)return reject(new Error("Este navegador no permite guardar datos locales (IndexedDB)."));const req=indexedDB.open("CompendioDatos",1);req.onupgradeneeded=()=>{const db=req.result;db.createObjectStore("master");db.createObjectStore("backups");db.createObjectStore("meta");};req.onsuccess=()=>{webDB=req.result;resolve(webDB);};req.onerror=()=>reject(req.error);req.onblocked=()=>reject(new Error("Base de datos bloqueada por otra pestaña."));});}
 async function idbOp(store,mode,fn){const db=await openWebDB();return await new Promise((resolve,reject)=>{const tx=db.transaction(store,mode);let r;try{r=fn(tx.objectStore(store));}catch(e){reject(e);return;}tx.oncomplete=()=>resolve(r?r.result:undefined);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Operación cancelada"));});}
 const idbGet=(store,key)=>idbOp(store,"readonly",s=>s.get(key));
@@ -112,9 +125,9 @@ function validData(data){return !!data&&(!data.format||data.format==="compendio-
 function parseCompendioFile(text){let parsed=JSON.parse(text);if(typeof parsed==="string")parsed=JSON.parse(parsed);return parsed;}
 function normaliseData(data){return {format:"compendio-baluarte",version:1,exportedAt:data.exportedAt||null,lists:data.lists,templates:Array.isArray(data.templates)?data.templates:[]};}
 function openHandleDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open("CompendioAccessOnly",1);req.onupgradeneeded=()=>req.result.createObjectStore("handles");req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
-async function storeRootHandle(handle){const db=await openHandleDB();await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readwrite");tx.objectStore("handles").put(handle,"root");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
-async function getStoredRootHandle(){const db=await openHandleDB();const value=await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readonly");const req=tx.objectStore("handles").get("root");req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return value;}
-async function clearStoredRootHandle(){const db=await openHandleDB();await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readwrite");tx.objectStore("handles").delete("root");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
+async function storeRootHandle(handle){const db=await openHandleDB();await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readwrite");tx.objectStore("handles").put(handle,HANDLE_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
+async function getStoredRootHandle(){const db=await openHandleDB();const value=await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readonly");const req=tx.objectStore("handles").get(HANDLE_KEY);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return value;}
+async function clearStoredRootHandle(){const db=await openHandleDB();await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readwrite");tx.objectStore("handles").delete(HANDLE_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
 async function hasWritePermission(handle){return (await handle.queryPermission({mode:"readwrite"}))==="granted";}
 async function requestWritePermission(handle){return (await handle.requestPermission({mode:"readwrite"}))==="granted";}
 async function initialiseFolders(handle){
@@ -199,6 +212,7 @@ async function connectFolder(){
           if(granted){
             await handle.getFileHandle("index.html");
             await handle.getFileHandle("app.js");
+            if(!await folderBelongsToThisCopy(handle))throw new Error("La carpeta recordada pertenece a otra copia del Compendio.");
           }
         }catch(staleError){
           console.warn("El acceso recordado no está disponible o no corresponde a la carpeta principal. Se solicitará de nuevo.",staleError);
@@ -236,6 +250,10 @@ async function connectFolder(){
         await handle.getFileHandle("app.js");
       }catch(invalidRoot){
         alert("La carpeta seleccionada no es la carpeta principal del Compendio. Selecciona la carpeta que contiene index.html y app.js. No se ha creado ni modificado ninguna carpeta.");
+        return;
+      }
+      if(!await folderBelongsToThisCopy(handle)){
+        alert("La carpeta seleccionada pertenece a OTRA copia o versión del Compendio (su archivo instancia.js no coincide con el index.html que has abierto).\n\nSelecciona la carpeta principal donde está ESTE index.html (la que contiene index.html, app.js e instancia.js). No selecciones DATOS.\n\nNo se ha creado ni modificado nada.");
         return;
       }
       if(!confirm(`Has seleccionado esta carpeta:\n\n${handle.name}\n\n¿Es la carpeta principal de EL COMPENDIO DEL BALUARTE?\n\nSelecciona la carpeta que contiene index.html y app.js. El acceso quedará limitado a esa carpeta y a su contenido.`))return;
@@ -456,11 +474,13 @@ $("changeFolderBtn").onclick=async()=>{
           // Validar la raíz antes de inicializar o crear carpetas de datos.
           await handle.getFileHandle("index.html");
           await handle.getFileHandle("app.js");
+          if(!await folderBelongsToThisCopy(handle))throw new Error("otra copia");
           rootHandle=handle;
           await initialiseFolders(handle);
           return;
         }catch(invalidRoot){
           await clearStoredRootHandle();
+          $("gateText").textContent="La carpeta recordada no corresponde a esta copia del Compendio. Selecciona la carpeta principal donde está el index.html que has abierto (la que contiene index.html, app.js e instancia.js). Nunca DATOS.";
         }
       }else{
         // La renovación del permiso requiere el clic del usuario. Se conserva
