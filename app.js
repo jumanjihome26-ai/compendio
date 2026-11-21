@@ -299,7 +299,7 @@ function renderNav(){
 // los JSON anteriores siguen leyéndose igual. Las imágenes viven FUERA del JSON:
 //  · Windows: carpeta ILUSTRACIONES del proyecto (la rellenas tú).  · Móvil/iPad: las incluidas en la app + las que añadas en el dispositivo.
 const IMG_EXT=/\.(png|jpe?g|webp|gif|svg|avif)$/i;
-const ILLUS_FOCUS={ALMA:[62,40],MECARTI:[65,40],RARITO:[38,40],VOCECITA:[38,33],MCGIVER:[57,35],PYTHI:[43,40],PLANI:[43,46],REPITE:[47,41],RESOPLON:[51,34],"REGISTRO-DE-LECTURAS":[35,40]};
+const ILLUS_FOCUS={01_ALMA:[62,40],MECARTI:[65,40],RARITO:[38,40],VOCECITA:[38,33],MCGIVER:[57,35],PYTHI:[43,40],PLANI:[43,46],REPITE:[47,41],RESOPLON:[51,34],"REGISTRO-DE-LECTURAS":[35,40]};
 let illus=new Map(),illusUrls=[],illusDirHandle=null,imgDB=null,pendingIllus="";
 const illusBase=n=>String(n||"").replace(/\.[^.]+$/,"");
 const illusLabel=n=>illusBase(n).replace(/[-_]+/g," ");
