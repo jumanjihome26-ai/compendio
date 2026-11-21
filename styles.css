@@ -99,3 +99,25 @@ button{-webkit-tap-highlight-color:transparent}
   .content{background-size:min(560px,130%);background-position:center 30%}
   .sidebar{box-shadow:none}
 }
+
+/* ===== V7.2 · emblema JUMANJI HOME + ALMA en la esquina inferior izquierda ===== */
+.jumanji-sign{height:70px;width:70px;border-radius:15px;object-fit:contain}
+.gate-sign{height:116px;width:116px;margin:0 auto 14px;border-radius:24px}
+.alma-corner{display:block;height:auto;filter:drop-shadow(0 4px 9px #0007);pointer-events:none;user-select:none;-webkit-user-drag:none}
+.alma-side{width:100%;max-width:205px;margin:18px 0 0 -4px}
+.alma-foot{display:none}
+@media(max-width:760px){
+  .jumanji-sign{height:56px;width:56px;border-radius:12px}
+  .alma-side{display:none}
+  .alma-foot{display:block;width:150px;margin:16px 0 0 -6px}
+}
+
+/* V7.2 · en pantallas anchas el menú lateral queda fijo (las listas se desplazan dentro) y ALMA siempre en la esquina inferior izquierda */
+@media(min-width:761px){
+  .topbar{position:sticky;top:0;z-index:30}
+  .sidebar{position:sticky;top:86px;height:calc(100vh - 86px);min-height:0;align-self:start;overflow:hidden}
+  #listNav{flex:1 1 auto;min-height:60px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#46604d transparent}
+  .sidebar .new-list-side,.sidebar .side-label,.sidebar .side-divider,.sidebar .nav-item{flex:0 0 auto}
+  .sidebar-note{margin-top:12px;flex:0 0 auto;padding-top:14px}
+  .alma-side{flex:0 0 auto;width:auto;max-width:205px;max-height:24vh;object-fit:contain;object-position:left bottom;margin:10px 0 0 -4px}
+}

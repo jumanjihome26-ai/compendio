@@ -1,4 +1,4 @@
-EL COMPENDIO DEL BALUARTE · V7 · VERSIÓN WEB PARA ANDROID E iPAD
+EL COMPENDIO DEL BALUARTE · V7.2 · VERSIÓN WEB PARA ANDROID E iPAD
 ================================================================
 
 QUÉ ES
@@ -58,3 +58,13 @@ V7 · NUEVA ESTÉTICA E ILUSTRACIONES
 - Las 10 ilustraciones vienen incluidas. En «Nueva lista»/«Editar nombre» eliges una (o ninguna).
 - «＋ Añadir imagen» te deja elegir una imagen de tu dispositivo (galería/archivos); se reduce y se guarda SOLO en ese dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el MISMO nombre (o súbela a la carpeta «ilustraciones» de GitHub y pídeme actualizar ilustraciones.json).
 - El nombre de la ilustración viaja en el JSON de exportación; las imágenes no.
+
+V7.1 · CORRECCIÓN DE «RESTAURAR» EN iPAD
+- En el iPad, «Restaurar» no hacía nada si no había copias internas, y «Elegir un archivo del dispositivo…» cerraba la ventana sin abrir el selector (iOS solo permite abrir el selector dentro del propio toque). Ahora «Restaurar» siempre abre su ventana y el selector de archivos se abre al pulsar. No hace falta hacer una copia antes.
+- Solo cambian app.js y sw.js. Sube esos dos archivos (o todo el contenido) a GitHub y abre la app dos veces con conexión.
+
+V7.2 · DISEÑO
+- Nuevo icono, nuevo emblema en la cabecera y ALMA abajo a la izquierda. Sin cambios en los datos.
+- Archivos a subir a GitHub (arrastrando): index.html, styles.css, sw.js, instancia.js, icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png y la carpeta «recursos» (trae 2 imágenes nuevas). Puedes subir todo el contenido sin más. En GitHub puedes borrar después icon.svg y recursos/jumanji-home.webp (ya no se usan); no hace falta.
+- Abre la app dos veces con conexión para ver el diseño nuevo.
+- ICONO: el icono de pantalla de inicio YA instalado no se cambia solo. En Android suele actualizarse solo con los días. En iPad hay que quitar el icono y volver a añadirlo: ANTES exporta una copia, porque al quitar la app web sus datos pueden borrarse; después abre el icono nuevo y usa Restaurar.
