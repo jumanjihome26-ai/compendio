@@ -1,10 +1,10 @@
-let lists=[], templates=[], currentView="all", currentListId=null, editingId=null;
+let lists=[], templates=[], deleted=[], baseline=null, currentView="all", currentListId=null, editingId=null;
 let refocusNewTask=false;
 let rootHandle=null, dataDirHandle=null, exportDirHandle=null, backupDirHandle=null;
 const $=id=>document.getElementById(id);
 const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
 const clone=x=>JSON.parse(JSON.stringify(x));
-const EMPTY_DATA={format:"compendio-baluarte",version:1,exportedAt:null,lists:[],templates:[]};
+const EMPTY_DATA={format:"compendio-baluarte",version:2,exportedAt:null,lists:[],templates:[],deleted:[]};
 // ===== V6 · MODO NAVEGADOR (Android, iPad y navegadores sin acceso a carpetas) =====
 // En Windows/Chrome de escritorio se sigue usando la carpeta y el JSON maestro (sin cambios).
 // Donde no existe showDirectoryPicker (Android, iPad/Safari, Firefox...) los datos se guardan en el
@@ -66,8 +66,7 @@ async function initialiseWeb(){
     try{loaded=JSON.parse(raw);}catch{throw new Error("Los datos guardados en este dispositivo no son un JSON válido. No los he sobrescrito para proteger tu información.");}
     if(!validData(loaded))throw new Error("Los datos guardados en este dispositivo no tienen una estructura válida. No los he modificado.");
   }
-  lists=Array.isArray(loaded.lists)?loaded.lists:[];
-  templates=Array.isArray(loaded.templates)?loaded.templates:[];
+  await adoptLoaded(loaded);
   await loadIllustrations();
   render();
   document.body.classList.remove("app-locked");
@@ -139,10 +138,10 @@ function chooseWebRestoreSource(){
 let toastTimer=null; function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),5200);}
 function escapeHTML(s=""){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function counts(l){const done=l.tasks.filter(t=>t.done).length;return {done,total:l.tasks.length,pct:l.tasks.length?Math.round(done/l.tasks.length*100):0};}
-function currentData(){return {format:"compendio-baluarte",version:1,exportedAt:new Date().toISOString(),lists,templates};}
-function validData(data){return !!data&&(!data.format||data.format==="compendio-baluarte")&&Array.isArray(data.lists)&&(!("templates" in data)||Array.isArray(data.templates))&&data.lists.every(x=>x&&typeof x.id==="string"&&Array.isArray(x.tasks))&&(!data.templates||data.templates.every(x=>x&&typeof x.id==="string"&&Array.isArray(x.tasks)));}
+function currentData(){return {format:"compendio-baluarte",version:2,exportedAt:new Date().toISOString(),lists,templates,deleted};}
+function validData(data){return !!data&&(!data.format||data.format==="compendio-baluarte")&&Array.isArray(data.lists)&&(!("templates" in data)||Array.isArray(data.templates))&&(!("deleted" in data)||Array.isArray(data.deleted))&&data.lists.every(x=>x&&typeof x.id==="string"&&Array.isArray(x.tasks))&&(!data.templates||data.templates.every(x=>x&&typeof x.id==="string"&&Array.isArray(x.tasks)));}
 function parseCompendioFile(text){let parsed=JSON.parse(text);if(typeof parsed==="string")parsed=JSON.parse(parsed);return parsed;}
-function normaliseData(data){return {format:"compendio-baluarte",version:1,exportedAt:data.exportedAt||null,lists:data.lists,templates:Array.isArray(data.templates)?data.templates:[]};}
+function normaliseData(data){return {format:"compendio-baluarte",version:2,exportedAt:data.exportedAt||null,lists:data.lists,templates:Array.isArray(data.templates)?data.templates:[],deleted:Array.isArray(data.deleted)?data.deleted:[]};}
 function openHandleDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open("CompendioAccessOnly",1);req.onupgradeneeded=()=>req.result.createObjectStore("handles");req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
 async function storeRootHandle(handle){const db=await openHandleDB();await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readwrite");tx.objectStore("handles").put(handle,HANDLE_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
 async function getStoredRootHandle(){const db=await openHandleDB();const value=await new Promise((resolve,reject)=>{const tx=db.transaction("handles","readonly");const req=tx.objectStore("handles").get(HANDLE_KEY);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return value;}
@@ -158,9 +157,7 @@ async function initialiseFolders(handle){
   const dataFile=await dataDirHandle.getFileHandle("Compendio-del-Baluarte.json",{create:true});
   const file=await dataFile.getFile();
   if(file.size===0){await writeHandle(dataFile,EMPTY_DATA);}
-  const loaded=await readMaster();
-  lists=Array.isArray(loaded.lists)?loaded.lists:[];
-  templates=Array.isArray(loaded.templates)?loaded.templates:[];
+  await adoptLoaded(await readMaster());
   render();
   document.body.classList.remove("app-locked");
   $("accessGate").hidden=true;
@@ -182,11 +179,26 @@ async function writeTextHandle(fileHandle,text){
 async function writeHandle(fileHandle,data){
   await writeTextHandle(fileHandle,JSON.stringify(data,null,2));
 }
+// V8 · Carga los datos y, si vienen en formato antiguo (v1), los migra a v2 SOLO AÑADIENDO campos (fechas y registro de borrados).
+// Antes de modificar nada se guarda una copia; si la copia falla, no se toca nada (14.5 de la Biblia).
+async function adoptLoaded(loaded){
+  const m=CompendioSync.normalise(loaded);
+  const hasData=(loaded.lists||[]).length>0||(loaded.templates||[]).length>0;
+  let backupName=null;
+  if(m.changed&&hasData)backupName=await backupCurrentMaster("ANTES_DE_MIGRAR_V8");
+  lists=m.data.lists;templates=m.data.templates;deleted=m.data.deleted;
+  if(m.changed)await writeMaster(currentData());
+  baseline=CompendioSync.snapshot(currentData());
+  if(backupName)toast("Datos actualizados al formato V8.\nCopia previa guardada: "+backupName);
+}
 async function saveData(){
   try{
     if(!WEB_MODE&&!dataDirHandle)throw new Error("Primero debes conectar la carpeta del Compendio.");
+    // V8: anota la fecha de cada cambio y registra los borrados (no impide nunca guardar si fallara).
+    try{if(baseline){const store={lists,templates,deleted};CompendioSync.seal(baseline,store,new Date().toISOString());lists=store.lists;templates=store.templates;deleted=store.deleted;}}catch(e){console.error("Sellado de cambios:",e);}
     const payload=currentData();
     await writeMaster(payload);
+    try{baseline=CompendioSync.snapshot(payload);}catch(e){console.error("Instantánea:",e);}
     $("saveStatus").textContent=WEB_MODE?"● Guardado en este dispositivo":"● Guardado en DATOS/Compendio-del-Baluarte.json";
     $("saveStatus").classList.remove("save-error");
   }catch(err){
@@ -547,8 +559,12 @@ async function processRestoreFile(file){
     data=normaliseData(data);
     if(!confirm(`RESTAURAR COPIA COMPLETA\n\nArchivo: ${file.name}\nIncluye ${data.lists.length} listas y ${data.templates.length} plantillas.\n\nSe sustituirán los datos actuales. Antes se guardará automáticamente una copia del JSON maestro actual en ${WEB_MODE?"las copias internas del dispositivo":"BACKUP"}.\n\n¿Continuar?`))return;
     const backup=await backupCurrentMaster("ANTES_DE_RESTAURAR");
-    await writeMaster(data);
-    lists=clone(data.lists);templates=clone(data.templates);render();
+    let restored=CompendioSync.normalise(clone(data)).data;
+    try{if(baseline)CompendioSync.seal(baseline,restored,new Date().toISOString());}catch(e){console.error("Sellado de la restauración:",e);}
+    await writeMaster(restored);
+    lists=restored.lists;templates=restored.templates;deleted=restored.deleted;
+    try{baseline=CompendioSync.snapshot(restored);}catch(e){console.error("Instantánea:",e);}
+    render();
     alert(`RESTAURACIÓN COMPLETADA\n\nArchivo: ${file.name}\nListas restauradas: ${data.lists.length}\nPlantillas restauradas: ${data.templates.length}\n\nCopia previa guardada en ${WEB_MODE?"las copias internas del dispositivo":"BACKUP"}:\n${backup}`);
   }catch(err){alert("No se pudo restaurar la copia: "+err.message);}
   }
