@@ -121,3 +121,36 @@ button{-webkit-tap-highlight-color:transparent}
   .sidebar-note{margin-top:12px;flex:0 0 auto;padding-top:14px}
   .alma-side{flex:0 0 auto;width:auto;max-width:205px;max-height:24vh;object-fit:contain;object-position:left bottom;margin:10px 0 0 -4px}
 }
+
+/* ===== V8 · Sincronización con Dropbox ===== */
+#syncBtn{font-size:18px}
+#syncBtn[data-state="ok"]{border-color:#9db88a;color:#d6ebc0}
+#syncBtn[data-state="busy"]{animation:syncpulse 1.2s infinite}
+#syncBtn[data-state="error"]{border-color:#d98a7a;color:#f2b4a6}
+#syncBtn[data-state="pending"]{border-color:var(--gold2);color:var(--gold2)}
+@keyframes syncpulse{50%{opacity:.4}}
+.sync-status{color:var(--gold2);margin-left:4px}
+.sync-modal{width:min(520px,calc(100% - 24px));max-height:90vh;overflow:auto}
+.sync-p{font-size:13px;line-height:1.55;color:#5e594a;margin:0 0 10px}
+.sync-small{font-size:11px;color:#8b8069}
+.sync-steps{font-size:13px;line-height:1.65;color:#5e594a;padding-left:20px;margin:0 0 12px}
+.sync-open{display:inline-flex;text-decoration:none;margin:2px 0 14px;align-items:center;justify-content:center}
+.sync-lab{display:block;font:700 10px Arial;letter-spacing:1px;text-transform:uppercase;color:#8b7a52;margin:4px 0 5px}
+.sync-modal input{width:100%;padding:11px 12px;border:1px solid #cdbf9f;background:#fbf7ed;font-size:16px;border-radius:3px;color:var(--ink)}
+.sync-ok{font:700 13px Arial;color:#4d6b3c;margin:0 0 10px}
+.sync-err{font-size:12.5px;line-height:1.5;color:#9a3d2e;background:#f6e4dd;border-left:3px solid #c9765f;padding:8px 10px;margin:10px 0}
+.sync-res{background:#eef0e0;padding:8px 10px;border-left:3px solid #8fa56f}
+@media(max-width:760px){.sync-status{display:none}}
+
+/* V8 · cabecera con 5 botones: iPad en vertical (solo iconos) y móviles estrechos */
+@media(pointer:coarse) and (min-width:761px) and (max-width:1000px){
+  .icon-btn::after{display:none}
+  .icon-btn{padding:0;width:46px;min-width:46px}
+  .topbar{padding-left:24px;padding-right:24px}
+  .top-actions{gap:8px}
+}
+@media(max-width:400px){
+  .icon-btn::after{font-size:10px}
+  .icon-btn{padding:0 3px;gap:2px;font-size:14px}
+  .top-actions{gap:3px}
+}

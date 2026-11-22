@@ -42,6 +42,8 @@
     <div><div class="eyebrow">BALUARTE DE KUTSUWANA</div><div class="brand">El Compendio <span>del Baluarte</span></div></div>
     <div class="top-actions">
       <span id="saveStatus" class="save-status">● Carpeta no conectada</span>
+      <span id="syncStatus" class="save-status sync-status"></span>
+      <button class="icon-btn" id="syncBtn" data-label="Dropbox" aria-label="Sincronizar con Dropbox" title="Conectar con Dropbox" data-state="off">☁</button>
       <button class="icon-btn" id="changeFolderBtn" data-label="Carpeta" aria-label="Cambiar carpeta" title="Cambiar carpeta del Compendio">⌂</button>
       <button class="icon-btn" id="backupBtn" data-label="Copia" aria-label="Copia de seguridad" title="Crear copia en BACKUP">▣</button>
       <button class="icon-btn" id="exportBtn" data-label="Exportar" aria-label="Exportar" title="Exportar archivo YEISON">⇧</button>
@@ -103,6 +105,12 @@
     <p class="illus-help" id="illusHelp"></p>
     <input type="file" id="illusFile" accept="image/*" hidden>
     <div class="modal-actions"><button type="button" class="quiet-btn" id="illusAdd">＋ Añadir imagen</button><button type="button" class="primary-btn" id="illusClose">Cerrar</button></div>
+  </dialog>
+
+  <dialog id="syncDialog" class="modal sync-modal">
+    <div class="modal-kicker">DROPBOX</div><h2>Sincronización</h2>
+    <div id="syncBody"></div>
+    <div class="modal-actions"><button type="button" class="quiet-btn" id="syncClose">Cerrar</button></div>
   </dialog>
 
   <dialog id="menuDialog" class="modal menu-modal">
