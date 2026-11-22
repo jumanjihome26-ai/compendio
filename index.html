@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#26352a">
+  <meta name="description" content="El Compendio del Baluarte. Artefacto personal para custodiar listas y misiones.">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Compendio">
+  <link rel="stylesheet" href="styles.css">
+  <title>El Compendio del Baluarte</title>
+</head>
+<body>
+  <section id="accessGate" class="access-gate">
+    <div class="access-card">
+      <img class="jumanji-sign gate-sign" src="recursos/jh-icono-compendio.webp" alt="Jumanji Home">
+      <div class="access-mark">✦</div>
+      <div class="eyebrow">BALUARTE DE KUTSUWANA</div>
+      <h1 id="gateTitle">Conectar EL COMPENDIO DEL BALUARTE</h1>
+      <p id="gateText">Para guardar tus listas y tareas, Chrome necesita permiso para acceder a la carpeta principal del Compendio.</p>
+      <div class="access-explainer">
+        <strong>¿Qué permiso estás concediendo?</strong>
+        <ul>
+          <li>Acceso de lectura y escritura únicamente a la carpeta que selecciones y a su contenido.</li>
+          <li>El programa creará dentro DATOS, EXPORTACION, BACKUP e ILUSTRACIONES si todavía no existen.</li>
+          <li>No se concede acceso a la unidad completa ni a otras carpetas del ordenador.</li>
+          <li>Los datos permanecen en tu equipo o en el USB. No se envían a Internet.</li>
+        </ul>
+      </div>
+      <p class="access-warning">Selecciona la carpeta <strong>EL COMPENDIO DEL BALUARTE</strong>, no la unidad que la contiene.</p>
+      <button class="primary-btn" id="connectFolderBtn">Seleccionar carpeta y conceder permiso</button>
+      <small>Chrome puede recordar la carpeta y el permiso para próximas aperturas. Si lo revocas o desconectas el dispositivo, tendrás que volver a conectarlo.</small>
+    </div>
+  </section>
+  <div class="grain"></div>
+  <header class="topbar">
+    <img class="jumanji-sign" src="recursos/jh-icono-compendio.webp" alt="Jumanji Home">
+    <div><div class="eyebrow">BALUARTE DE KUTSUWANA</div><div class="brand">El Compendio <span>del Baluarte</span></div></div>
+    <div class="top-actions">
+      <span id="saveStatus" class="save-status">● Carpeta no conectada</span>
+      <span id="syncStatus" class="save-status sync-status"></span>
+      <button class="icon-btn" id="syncBtn" data-label="Dropbox" aria-label="Sincronizar con Dropbox" title="Conectar con Dropbox" data-state="off">☁</button>
+      <button class="icon-btn" id="changeFolderBtn" data-label="Carpeta" aria-label="Cambiar carpeta" title="Cambiar carpeta del Compendio">⌂</button>
+      <button class="icon-btn" id="backupBtn" data-label="Copia" aria-label="Copia de seguridad" title="Crear copia en BACKUP">▣</button>
+      <button class="icon-btn" id="exportBtn" data-label="Exportar" aria-label="Exportar" title="Exportar archivo YEISON">⇧</button>
+      <button class="icon-btn" id="importBtn" data-label="Importar" aria-label="Importar" title="Importar y combinar copia">⇩</button>
+      <button class="icon-btn" id="restoreBtn" data-label="Restaurar" aria-label="Restaurar" title="Restaurar copia completa">↶</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    </div>
+  </header>
+
+  <main class="shell">
+    <aside class="sidebar">
+      <div class="side-label">EL ARCHIVO</div>
+      <button class="nav-item active" data-view="all"><span>▤</span> Todas las listas <b id="allCount">0</b></button>
+      <button class="nav-item" data-view="templates"><span>✧</span> Plantillas <b id="templateCount">0</b></button>
+      <div class="side-divider"></div>
+      <div class="side-label">TUS COLECCIONES</div>
+      <div id="listNav"></div>
+      <button class="new-list-side" id="newListSide">＋ Crear una lista</button>
+      <div class="sidebar-note"><span>❧</span><p>«Toda gran expedición comienza con algo que no debemos olvidar»</p></div>
+      <img class="alma-corner alma-side" src="recursos/alma.webp" alt="ALMA">
+    </aside>
+
+    <section class="content">
+      <div id="webNotice" class="web-notice" hidden><span>Tus datos se guardan solo en este dispositivo. Usa <b>Exportar</b> para llevarlos a otro y haz copias de vez en cuando. Para que el sistema no los borre: «Añadir a pantalla de inicio» / «Instalar app».</span><button type="button" id="webNoticeClose" aria-label="Cerrar aviso">×</button></div>
+      <div class="welcome-line"><span class="leaf">❧</span> REGISTRO DE EXPEDICIONES <span class="leaf">❧</span></div>
+      <div class="heading-row">
+        <div><div class="eyebrow" id="viewEyebrow">TU ARCHIVO PERSONAL</div><h1 id="viewTitle">Todas las listas</h1><p class="subtitle" id="viewSubtitle">Tus asuntos, proyectos y pequeñas conquistas, reunidos en un mismo lugar.</p></div>
+        <button class="primary-btn" id="newListBtn"><span>＋</span> Nueva lista</button>
+      </div>
+      <div id="listArea"></div>
+      <footer><span>✦</span> PRIMERA EDICIÓN · ARTEFACTO DEL BALUARTE <span>✦</span></footer>
+      <img class="alma-corner alma-foot" src="recursos/alma.webp" alt="ALMA">
+    </section>
+  </main>
+
+  <dialog id="listDialog" class="modal">
+    <form method="dialog" id="listForm">
+      <div class="modal-kicker">NUEVO REGISTRO</div><h2 id="dialogTitle">Crear una lista</h2>
+      <label for="listName">Nombre de la lista</label><input id="listName" maxlength="70" placeholder="Ej. Expedición de la semana" required>
+      <label for="listDesc">Descripción <small>(opcional)</small></label><textarea id="listDesc" rows="2" maxlength="180" placeholder="Una nota para recordar el propósito..."></textarea>
+      <label>Ilustración <small>(opcional)</small></label>
+      <div class="illus-pick"><span id="illusPreview"></span><button type="button" class="small-btn" id="illusChoose">Elegir…</button><button type="button" class="small-btn" id="illusClear" hidden>Quitar</button></div>
+      <div class="modal-actions"><button type="button" class="quiet-btn" id="cancelDialog">Cancelar</button><button class="primary-btn" value="save">Guardar en el Compendio</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="taskDialog" class="modal">
+    <form method="dialog" id="taskForm">
+      <div class="modal-kicker">AÑADIR A LA EXPEDICIÓN</div><h2>Nueva tarea</h2>
+      <label for="taskName">¿Qué hay que hacer?</label><input id="taskName" maxlength="140" placeholder="Escribe una tarea..." required>
+      <div class="modal-actions"><button type="button" class="quiet-btn" id="cancelTask">Cancelar</button><button class="primary-btn" value="save">Añadir tarea</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="illusDialog" class="modal illus-modal">
+    <div class="modal-kicker">ILUSTRACIONES</div><h2>Elige un enanito</h2>
+    <div id="illusGrid" class="illus-grid"></div>
+    <p class="illus-help" id="illusHelp"></p>
+    <input type="file" id="illusFile" accept="image/*" hidden>
+    <div class="modal-actions"><button type="button" class="quiet-btn" id="illusAdd">＋ Añadir imagen</button><button type="button" class="primary-btn" id="illusClose">Cerrar</button></div>
+  </dialog>
+
+  <dialog id="syncDialog" class="modal sync-modal">
+    <div class="modal-kicker">DROPBOX</div><h2>Sincronización</h2>
+    <div id="syncBody"></div>
+    <div class="modal-actions"><button type="button" class="quiet-btn" id="syncClose">Cerrar</button></div>
+  </dialog>
+
+  <dialog id="menuDialog" class="modal menu-modal">
+    <div class="modal-kicker">OPCIONES</div><h2 id="menuTitle"></h2>
+    <div id="menuOptions"></div>
+    <div class="modal-actions"><button type="button" class="quiet-btn" id="menuCancel">Cancelar</button></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="instancia.js"></script>
+  <script src="sync.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

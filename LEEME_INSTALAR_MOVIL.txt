@@ -1,0 +1,88 @@
+EL COMPENDIO DEL BALUARTE · V8.1 · VERSIÓN WEB PARA ANDROID E iPAD
+================================================================
+
+QUÉ ES
+Es la misma aplicación, en formato "web instalable" (PWA). Se publica UNA vez en una
+dirección web y desde cada dispositivo se instala. Después funciona SIN conexión.
+Los datos se guardan SOLO en el dispositivo (almacenamiento del navegador, IndexedDB),
+con la misma estructura JSON que en Windows. Nada se envía a Internet.
+
+NO subas a la web las carpetas DATOS, EXPORTACION ni BACKUP de Windows: este paquete
+no las incluye a propósito. Tus datos viajan solo con Exportar / Importar.
+
+1) PUBLICAR (una sola vez, necesita Internet)
+Sube el CONTENIDO de la carpeta COMPENDIO_WEB (index.html, app.js, styles.css, sw.js,
+manifest.webmanifest, iconos...) a un alojamiento de páginas estáticas con HTTPS
+(por ejemplo GitHub Pages, Netlify o Cloudflare Pages). index.html debe quedar en la
+raíz de la dirección. Quien conozca la dirección podrá ver la APLICACIÓN VACÍA, nunca tus datos.
+(La aplicación necesita HTTPS: sin él, el navegador no permite instalarla ni usarla sin conexión.)
+
+2) INSTALAR
+- Android (Chrome): abre la dirección > menú ⋮ > «Instalar aplicación» (o «Añadir a pantalla de inicio»).
+- iPad/iPhone (Safari): abre la dirección > botón Compartir > «Añadir a pantalla de inicio».
+  IMPORTANTE en iOS: abre siempre la app desde el icono de la pantalla de inicio. Si se
+  usa solo en una pestaña de Safari, iOS puede borrar los datos tras días sin uso.
+- Abre la app una vez con conexión para que quede guardada para uso sin conexión.
+
+3) PASAR DATOS ENTRE DISPOSITIVOS (Exportar / Importar)
+- Exportar (⇧): en móvil/iPad abre el menú de compartir (Guardar en Archivos, Drive,
+  Dropbox...). Si el dispositivo no lo permite, descarga el archivo YEISON_Compendio_*.json.
+- Importar (⇩): elige ese .json. Si una lista con el mismo nombre ya existe, se SUSTITUYE
+  por la del archivo (tareas y estados incluidos); si no existe, se añade; las demás no se tocan.
+- Flujo recomendado: editar en UN dispositivo > Exportar > Importar en el siguiente.
+  Si editas en dos dispositivos antes de pasar el archivo, la última importación prevalece.
+- Importar NO borra listas: si borras una lista en un dispositivo, seguirá en los otros
+  hasta que la elimines allí también (o uses Restaurar, que sí sustituye todo).
+
+4) COPIAS Y RESTAURAR
+- Copia (▣): guarda una copia interna en el dispositivo Y además compártela/descárgala como
+  archivo BK_*.json (esa es la que te protege si se borra el navegador). Guárdala fuera del dispositivo.
+- Restaurar (↶): elige un archivo o una copia interna. Antes de sustituir los datos se crea
+  automáticamente BK_ANTES_DE_RESTAURAR_*.json (copia interna).
+
+5) ACTUALIZAR LA APLICACIÓN
+Sube los archivos nuevos al mismo sitio. La app se actualiza sola en el dispositivo: ciérrala
+y ábrela dos veces con conexión. Tus datos no se tocan (están en el almacenamiento, no en el código).
+
+NOTAS
+- En un ordenador, esta misma dirección funcionaría en Chrome pidiendo carpeta; para usarla
+  con almacenamiento del navegador añade ?modo=navegador al final de la dirección.
+- Android e iPad: probado con navegador móvil emulado (guardado, recarga, exportar, importar,
+  copias, restaurar, sin conexión). Falta la prueba real en TUS dispositivos, sobre todo el
+  menú de compartir al exportar en iPad.
+
+V6.3: corregido el fallo por el que Chrome de Android mostraba la pantalla «Seleccionar carpeta». Si ya instalaste una versión anterior: abre la app dos veces con conexión para que se actualice (si no, desinstálala y vuelve a instalarla; tus datos están en el navegador, así que exporta antes una copia).
+
+V7 · NUEVA ESTÉTICA E ILUSTRACIONES
+- Sube TODO el contenido de esta carpeta a GitHub (Add file > Upload files), INCLUIDAS las carpetas «recursos» e «ilustraciones» (se pueden arrastrar las carpetas enteras). Sobrescribe lo anterior. Después abre la app dos veces con conexión.
+- Las 10 ilustraciones vienen incluidas. En «Nueva lista»/«Editar nombre» eliges una (o ninguna).
+- «＋ Añadir imagen» te deja elegir una imagen de tu dispositivo (galería/archivos); se reduce y se guarda SOLO en ese dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el MISMO nombre (o súbela a la carpeta «ilustraciones» de GitHub y pídeme actualizar ilustraciones.json).
+- El nombre de la ilustración viaja en el JSON de exportación; las imágenes no.
+
+V7.1 · CORRECCIÓN DE «RESTAURAR» EN iPAD
+- En el iPad, «Restaurar» no hacía nada si no había copias internas, y «Elegir un archivo del dispositivo…» cerraba la ventana sin abrir el selector (iOS solo permite abrir el selector dentro del propio toque). Ahora «Restaurar» siempre abre su ventana y el selector de archivos se abre al pulsar. No hace falta hacer una copia antes.
+- Solo cambian app.js y sw.js. Sube esos dos archivos (o todo el contenido) a GitHub y abre la app dos veces con conexión.
+
+V7.2 · DISEÑO
+- Nuevo icono, nuevo emblema en la cabecera y ALMA abajo a la izquierda. Sin cambios en los datos.
+- Archivos a subir a GitHub (arrastrando): index.html, styles.css, sw.js, instancia.js, icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png y la carpeta «recursos» (trae 2 imágenes nuevas). Puedes subir todo el contenido sin más. En GitHub puedes borrar después icon.svg y recursos/jumanji-home.webp (ya no se usan); no hace falta.
+- Abre la app dos veces con conexión para ver el diseño nuevo.
+- ICONO: el icono de pantalla de inicio YA instalado no se cambia solo. En Android suele actualizarse solo con los días. En iPad hay que quitar el icono y volver a añadirlo: ANTES exporta una copia, porque al quitar la app web sus datos pueden borrarse; después abre el icono nuevo y usa Restaurar.
+
+V8 · SINCRONIZACIÓN CON DROPBOX
+- Archivo NUEVO: sync.js. Además cambian index.html, app.js, styles.css, sw.js e instancia.js. Sube TODO el contenido de esta carpeta a GitHub (Add file > Upload files; arrastra también las carpetas). Después abre la app dos veces con conexión.
+- ANTES de actualizar: exporta una copia desde cada dispositivo (la actualización migra el formato del JSON; se crea además una copia interna automática «ANTES_DE_MIGRAR»).
+- Botón «☁ Dropbox» (en el iPad en vertical solo se ve el icono ☁): Abrir Dropbox → iniciar sesión → Permitir → copiar el código → pegarlo → Conectar.
+- Orden recomendado: conecta primero Windows (sube sus datos), luego Android y iPad.
+- Se sincroniza sola al abrir, tras cada cambio y al recuperar la conexión. Sin conexión funciona igual.
+
+========================================================================
+V8.1 · ILUSTRACIONES SINCRONIZADAS Y TÍTULO DUPLICADO
+========================================================================
+- Las ilustraciones que añadas en un dispositivo (carpeta ILUSTRACIONES en Windows, «＋ Añadir imagen» en móvil/iPad) se copian solas a Dropbox (carpeta ILUSTRACIONES de la app) y a los demás dispositivos, con su MISMO nombre. Las 10 incluidas en la app no se suben (ya están en todos).
+- Nunca se sobrescribe ni se borra ninguna imagen, ni en los dispositivos ni en Dropbox. Si ya existe una con ese nombre, se queda la que había.
+- Quitar una imagen en un dispositivo no la quita de los demás ni de Dropbox. Para eliminarla del todo: bórrala en cada dispositivo y también en la carpeta ILUSTRACIONES de Dropbox. En móvil/iPad, lo que quites con la × no se vuelve a descargar a ESE dispositivo.
+- En móvil/iPad las imágenes se guardan reducidas (JPG, máx. 760 px). Una imagen añadida en móvil como «Nuevo.jpg» llega a Windows con ese nombre.
+- Corregido: al abrir una lista el nombre salía duplicado; ahora aparece una sola vez (título grande) junto al medallón.
+- Para actualizar: Windows, igual que siempre (carpeta nueva + importar). Web: subir todo a GitHub y abrir dos veces con conexión. Los datos y la conexión con Dropbox se conservan.
+
