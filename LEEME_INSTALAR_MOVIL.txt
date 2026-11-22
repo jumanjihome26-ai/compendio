@@ -1,4 +1,4 @@
-EL COMPENDIO DEL BALUARTE · V8.1 · VERSIÓN WEB PARA ANDROID E iPAD
+EL COMPENDIO DEL BALUARTE · V8.2 · VERSIÓN WEB PARA ANDROID E iPAD
 ================================================================
 
 QUÉ ES
@@ -85,4 +85,14 @@ V8.1 · ILUSTRACIONES SINCRONIZADAS Y TÍTULO DUPLICADO
 - En móvil/iPad las imágenes se guardan reducidas (JPG, máx. 760 px). Una imagen añadida en móvil como «Nuevo.jpg» llega a Windows con ese nombre.
 - Corregido: al abrir una lista el nombre salía duplicado; ahora aparece una sola vez (título grande) junto al medallón.
 - Para actualizar: Windows, igual que siempre (carpeta nueva + importar). Web: subir todo a GitHub y abrir dos veces con conexión. Los datos y la conexión con Dropbox se conservan.
+
+
+========================================================================
+V8.2 · DISEÑO DE ILUSTRACIONES
+========================================================================
+- Medallones más grandes (tarjetas, lista abierta y selector).
+- En la lista abierta, el círculo va a la IZQUIERDA y el nombre de la lista a su derecha (más grande y sin duplicar).
+- Círculo vacío pulsable: en la lista abierta (círculo punteado «＋») y en «Nueva lista» / «Editar nombre» (círculo junto a «Sin ilustración»). Al pulsarlo se abre el selector de imágenes. Desde la lista abierta, la elección se guarda al momento. «＋ Añadir imagen» desde ahí también la asigna directamente.
+- Nuevo botón «↺ Recuperar quitadas (N)» en el selector (móvil/iPad): vuelve a descargar de Dropbox las imágenes que quitaste con la ×. La × solo quita la imagen de ESE dispositivo (sigue en Dropbox y en los demás).
+- Sin cambios en los datos ni en Dropbox. Windows: copia nueva = seleccionar su carpeta principal e importar (como siempre). Web: subir todo a GitHub y abrir dos veces con conexión.
 

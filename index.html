@@ -71,7 +71,7 @@
       <div id="webNotice" class="web-notice" hidden><span>Tus datos se guardan solo en este dispositivo. Usa <b>Exportar</b> para llevarlos a otro y haz copias de vez en cuando. Para que el sistema no los borre: «Añadir a pantalla de inicio» / «Instalar app».</span><button type="button" id="webNoticeClose" aria-label="Cerrar aviso">×</button></div>
       <div class="welcome-line"><span class="leaf">❧</span> REGISTRO DE EXPEDICIONES <span class="leaf">❧</span></div>
       <div class="heading-row">
-        <div><div class="eyebrow" id="viewEyebrow">TU ARCHIVO PERSONAL</div><h1 id="viewTitle">Todas las listas</h1><p class="subtitle" id="viewSubtitle">Tus asuntos, proyectos y pequeñas conquistas, reunidos en un mismo lugar.</p></div>
+        <div class="heading-main"><button type="button" class="head-medallion" id="headMedallion" hidden aria-label="Elegir ilustración"></button><div><div class="eyebrow" id="viewEyebrow">TU ARCHIVO PERSONAL</div><h1 id="viewTitle">Todas las listas</h1><p class="subtitle" id="viewSubtitle">Tus asuntos, proyectos y pequeñas conquistas, reunidos en un mismo lugar.</p></div></div>
         <button class="primary-btn" id="newListBtn"><span>＋</span> Nueva lista</button>
       </div>
       <div id="listArea"></div>
@@ -104,7 +104,7 @@
     <div id="illusGrid" class="illus-grid"></div>
     <p class="illus-help" id="illusHelp"></p>
     <input type="file" id="illusFile" accept="image/*" hidden>
-    <div class="modal-actions"><button type="button" class="quiet-btn" id="illusAdd">＋ Añadir imagen</button><button type="button" class="primary-btn" id="illusClose">Cerrar</button></div>
+    <div class="modal-actions"><button type="button" class="quiet-btn" id="illusRestore" hidden>↺ Recuperar quitadas</button><button type="button" class="quiet-btn" id="illusAdd">＋ Añadir imagen</button><button type="button" class="primary-btn" id="illusClose">Cerrar</button></div>
   </dialog>
 
   <dialog id="syncDialog" class="modal sync-modal">

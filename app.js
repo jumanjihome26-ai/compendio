@@ -412,27 +412,35 @@ async function addIllustration(file){
   if(window.Sync){Sync.unignoreImage(name);Sync.imagesChanged();}
   return name;
 }
-function paintIllusPreview(){$("illusPreview").innerHTML=pendingIllus?illusMedallion(pendingIllus,"big"):'<span class="illus-none">Sin ilustración</span>';$("illusClear").hidden=!pendingIllus;}
-async function openIllusPicker(){
+function paintIllusPreview(){$("illusPreview").innerHTML=pendingIllus?illusMedallion(pendingIllus,"big"):'<span class="medallion empty" title="Elegir ilustración">＋</span><span class="illus-none">Sin ilustración</span>';$("illusClear").hidden=!pendingIllus;}
+let pickHandler=null;
+async function openIllusPicker(handler){
+  if(handler!==undefined)pickHandler=handler;
   await loadIllustrations();
   const cells=[`<div class="illus-cell"><button type="button" class="illus-tile${pendingIllus?"":" sel"}" data-pick=""><span class="illus-img none">∅</span><b>Sin ilustración</b></button></div>`];
-  for(const it of illus.values()){const [x,y]=illusFocus(it.name);cells.push(`<div class="illus-cell"><button type="button" class="illus-tile${it.name===pendingIllus?" sel":""}" data-pick="${escapeHTML(it.name)}"><img class="illus-img" src="${it.url}" alt="" style="object-position:${x}% ${y}%"><b>${escapeHTML(illusLabel(it.name))}</b></button>${it.user?`<button type="button" class="illus-del" data-del="${escapeHTML(it.name)}" title="Quitar esta imagen del dispositivo" aria-label="Quitar imagen">×</button>`:""}</div>`);}
+  for(const it of illus.values()){const [x,y]=illusFocus(it.name);cells.push(`<div class="illus-cell"><button type="button" class="illus-tile${it.name===pendingIllus?" sel":""}" data-pick="${escapeHTML(it.name)}"><img class="illus-img" src="${it.url}" alt="" style="object-position:${x}% ${y}%"><b>${escapeHTML(illusLabel(it.name))}</b></button>${it.user?`<button type="button" class="illus-del" data-del="${escapeHTML(it.name)}" title="Quitar de ESTE dispositivo (sigue en Dropbox y se puede recuperar)" aria-label="Quitar imagen de este dispositivo">×</button>`:""}</div>`);}
   $("illusGrid").innerHTML=cells.join("");
   $("illusHelp").textContent=WEB_MODE?"Pulsa «Añadir imagen» para incluir tus propias ilustraciones; se guardan solo en este dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el mismo nombre.":"Puedes añadir imágenes con el botón, o copiarlas directamente a la carpeta ILUSTRACIONES del proyecto (png, jpg, webp) y volver a abrir este selector.";
-  $("illusGrid").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{pendingIllus=b.dataset.pick;paintIllusPreview();$("illusDialog").close();});
-  $("illusGrid").querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const n=b.dataset.del;if(!confirm(`¿Quitar la imagen «${n}» de este dispositivo? Las listas que la usen mostrarán un círculo vacío hasta que añadas otra con el mismo nombre.`))return;try{await imgDel(n);if(window.Sync)Sync.ignoreImage(n);}catch(err){alert("No se pudo quitar: "+err.message);}openIllusPicker();});
+  $("illusGrid").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{const v=b.dataset.pick,h=pickHandler;if(!h){pendingIllus=v;paintIllusPreview();}$("illusDialog").close();if(h)h(v);});
+  $("illusGrid").querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const n=b.dataset.del;if(!confirm(`¿Quitar la imagen «${n}» de ESTE dispositivo?\n\nSigue guardada en Dropbox y en los demás dispositivos, y la puedes recuperar con «Recuperar quitadas». Mientras tanto, las listas que la usen mostrarán un círculo vacío aquí.`))return;try{await imgDel(n);if(window.Sync)Sync.ignoreImage(n);}catch(err){alert("No se pudo quitar: "+err.message);}openIllusPicker();});
+  const ig=(window.Sync&&Sync.ignoredImages)?Sync.ignoredImages():[];
+  $("illusRestore").hidden=!ig.length;$("illusRestore").textContent="↺ Recuperar quitadas ("+ig.length+")";
   if(!$("illusDialog").open)$("illusDialog").showModal();
 }
-$("illusChoose").onclick=()=>openIllusPicker();
+$("illusDialog").addEventListener("close",()=>{pickHandler=null;});
+$("illusRestore").onclick=async()=>{$("illusRestore").disabled=true;try{await Sync.clearIgnored();}catch(e){/* se muestra en la ventana de Dropbox */}$("illusRestore").disabled=false;toast("Imágenes quitadas: se recuperan de Dropbox.");openIllusPicker();};
+$("illusChoose").onclick=()=>openIllusPicker(null);
+$("illusPreview").onclick=()=>openIllusPicker(null);
 $("illusClear").onclick=()=>{pendingIllus="";paintIllusPreview();};
 $("illusClose").onclick=()=>$("illusDialog").close();
 $("illusAdd").onclick=()=>$("illusFile").click();
-$("illusFile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const n=await addIllustration(f);if(n){pendingIllus=n;paintIllusPreview();await openIllusPicker();toast("Imagen añadida: "+n);}}catch(err){alert("No se pudo añadir la imagen: "+err.message);}};
+$("illusFile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;try{const n=await addIllustration(f);if(n){const h=pickHandler;if(h){$("illusDialog").close();h(n);}else{pendingIllus=n;paintIllusPreview();await openIllusPicker();}toast("Imagen añadida: "+n);}}catch(err){alert("No se pudo añadir la imagen: "+err.message);}};
 
 function render(){
   setTimeout(()=>{illusUrlsOld.splice(0).forEach(u=>{try{URL.revokeObjectURL(u);}catch{}});},1500);
   renderNav();const area=$("listArea");
   if(currentView==="list"){const l=lists.find(x=>x.id===currentListId);if(!l){currentView="all";render();return;}renderDetail(l);return;}
+  paintHeadMedallion(null);
   const isTemplates=currentView==="templates";
   $("viewEyebrow").textContent=isTemplates?"REPERTORIO DE PLANTILLAS":"TU ARCHIVO PERSONAL";
   $("viewTitle").textContent=isTemplates?"Plantillas":"Todas las listas";
@@ -469,11 +477,18 @@ async function useTemplate(id){
   const l={...clone(t),id:uid(),name:String(t.name||"").replace(/^PLANTILLA - /i,"")||t.name,createdAt:new Date().toISOString(),tasks:t.tasks.map(x=>({id:uid(),text:x.text,done:false}))};
   delete l.updatedAt;lists.push(l);currentView="list";currentListId=l.id;await saveData();render();toast("Nueva lista creada desde la plantilla.");
 }
+function paintHeadMedallion(l){
+  const b=$("headMedallion");if(!b)return;
+  if(!l){b.hidden=true;b.innerHTML="";return;}
+  b.hidden=false;b.innerHTML=l.illustration?illusMedallion(l.illustration,"xl"):'<span class="medallion xl empty" title="Elegir ilustración">＋</span>';
+  b.onclick=()=>openIllusPicker(async v=>{const x=lists.find(y=>y.id===l.id);if(!x)return;if(v)x.illustration=v;else delete x.illustration;await saveData();render();});
+}
 function openList(id){currentView="list";currentListId=id;render();}
 function renderDetail(l){
+  paintHeadMedallion(l);
   $("viewEyebrow").textContent="REGISTRO DE EXPEDICIÓN";$("viewTitle").textContent=l.name;$("viewSubtitle").textContent=l.description||"Cada tarea completada es un paso más en el camino.";
   const c=counts(l);
-  $("listArea").innerHTML=`<div class="detail-head"><button class="back-btn" id="backBtn">← Volver</button>${l.illustration?illusMedallion(l.illustration,"big"):""}<div class="detail-actions"><button class="small-btn" id="editList">Editar nombre</button><button class="small-btn" id="saveTemplate">Guardar como plantilla</button><button class="small-btn" id="duplicateList">Duplicar</button><button class="small-btn" id="resetList">Reiniciar tareas</button></div></div><div class="progress-row" style="margin:0 2px 8px"><span>AVANCE DE LA EXPEDICIÓN</span><span>${c.done}/${c.total} · ${c.pct}%</span></div><div class="progress-track" style="height:5px;margin-bottom:17px"><div class="progress-fill" style="width:${c.pct}%"></div></div><div class="task-panel">${l.tasks.length?l.tasks.map(t=>`<div class="task-row ${t.done?"done":""}" data-task-row="${t.id}"><input class="task-check" type="checkbox" data-check="${t.id}" ${t.done?"checked":""}><span class="task-text">${escapeHTML(t.text)}</span><button class="small-btn edit-task" data-edit-task="${t.id}" title="Editar tarea" aria-label="Editar tarea">✎</button><button class="delete-task" data-delete="${t.id}" title="Eliminar tarea">×</button></div>`).join(""):`<div class="empty" style="border:0;padding:28px 12px;background:transparent"><div class="empty-mark">✧</div><p>Esta expedición aún no tiene tareas.</p></div>`}</div><form class="add-task" id="addTaskForm"><input id="newTask" maxlength="140" placeholder="Añadir una nueva tarea..." autocomplete="off"><button class="primary-btn">＋ Añadir</button></form>`;
+  $("listArea").innerHTML=`<div class="detail-head"><button class="back-btn" id="backBtn">← Volver</button><div class="detail-actions"><button class="small-btn" id="editList">Editar nombre</button><button class="small-btn" id="saveTemplate">Guardar como plantilla</button><button class="small-btn" id="duplicateList">Duplicar</button><button class="small-btn" id="resetList">Reiniciar tareas</button></div></div><div class="progress-row" style="margin:0 2px 8px"><span>AVANCE DE LA EXPEDICIÓN</span><span>${c.done}/${c.total} · ${c.pct}%</span></div><div class="progress-track" style="height:5px;margin-bottom:17px"><div class="progress-fill" style="width:${c.pct}%"></div></div><div class="task-panel">${l.tasks.length?l.tasks.map(t=>`<div class="task-row ${t.done?"done":""}" data-task-row="${t.id}"><input class="task-check" type="checkbox" data-check="${t.id}" ${t.done?"checked":""}><span class="task-text">${escapeHTML(t.text)}</span><button class="small-btn edit-task" data-edit-task="${t.id}" title="Editar tarea" aria-label="Editar tarea">✎</button><button class="delete-task" data-delete="${t.id}" title="Eliminar tarea">×</button></div>`).join(""):`<div class="empty" style="border:0;padding:28px 12px;background:transparent"><div class="empty-mark">✧</div><p>Esta expedición aún no tiene tareas.</p></div>`}</div><form class="add-task" id="addTaskForm"><input id="newTask" maxlength="140" placeholder="Añadir una nueva tarea..." autocomplete="off"><button class="primary-btn">＋ Añadir</button></form>`;
   $("backBtn").onclick=()=>{currentView="all";currentListId=null;render();};
   $("editList").onclick=()=>openListDialog(l);$("saveTemplate").onclick=()=>saveTemplate(l);$("duplicateList").onclick=()=>duplicateList(l);
   $("resetList").onclick=async()=>{

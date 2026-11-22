@@ -155,3 +155,21 @@ button{-webkit-tap-highlight-color:transparent}
   .top-actions{gap:3px}
 }
 .detail-actions{margin-left:auto}
+
+/* ===== V8.2 · medallones más grandes; nombre de la lista a la derecha del círculo ===== */
+.medallion{width:92px;height:92px}
+.medallion.big{width:110px;height:110px}
+.medallion.xl{width:132px;height:132px}
+.medallion.empty{display:inline-grid;place-items:center;background:transparent;border:2px dashed var(--gold);box-shadow:none;color:#9b895d;font-size:32px}
+.head-medallion{border:0;background:none;padding:0;cursor:pointer;flex-shrink:0;display:inline-flex;border-radius:50%}
+.head-medallion[hidden]{display:none}
+.head-medallion:hover .medallion,.head-medallion:focus-visible .medallion{filter:brightness(1.06)}
+.heading-main{display:flex;align-items:center;gap:26px;min-width:0}
+.heading-main h1{overflow-wrap:anywhere}
+#illusPreview{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.illus-pick .medallion{width:72px;height:72px}
+@media(max-width:760px){
+  .medallion{width:78px;height:78px}.medallion.big{width:90px;height:90px}.medallion.xl{width:96px;height:96px}
+  .heading-main{gap:14px;width:100%}
+  .illus-pick .medallion{width:64px;height:64px}
+}

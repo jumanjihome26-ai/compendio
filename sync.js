@@ -526,7 +526,7 @@
     paintButton();
   }
 
-  const api = { ignoreImage, unignoreImage, imagesChanged, _setNow: f => { nowFn = f; }, EPOCH, ensureStamps, makeBaseline, stampChanges, mergeData, canon, init, ui, syncNow, schedule, connectWithCode, disconnect, status: () => status, onStatus: f => listeners.push(f), _hash: { hList, hTask, hTpl } };
+  const api = { ignoredImages: () => (state.ignoredImages || []).slice(), clearIgnored: async () => { state.ignoredImages = []; state.imagesDirty = true; await saveState(); return syncNow({}); }, ignoreImage, unignoreImage, imagesChanged, _setNow: f => { nowFn = f; }, EPOCH, ensureStamps, makeBaseline, stampChanges, mergeData, canon, init, ui, syncNow, schedule, connectWithCode, disconnect, status: () => status, onStatus: f => listeners.push(f), _hash: { hList, hTask, hTpl } };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Sync = api;
 })(typeof window !== "undefined" ? window : globalThis);
