@@ -204,7 +204,7 @@
   /* ---------------------------------------------------------------
      PARTE 2 · DROPBOX
      --------------------------------------------------------------- */
-  let host = null, auth = null, state = {}, running = null, rerun = false, timer = null, kvdb = null, listeners = [];
+  let host = null, auth = null, ignoredList = [], state = {}, running = null, rerun = false, timer = null, kvdb = null, listeners = [];
   const status = { connected: false, busy: false, error: null, pending: false, lastSyncAt: null, lastResult: null };
 
   function kvOpen() {
@@ -333,7 +333,7 @@
     const need = !opts.auto || state.imagesDirty || missingRefs().length > 0 || !state.imagesAt || Date.now() - state.imagesAt > 10 * 60 * 1000;
     if (!need) return null;
     const remote = await listRemoteImages();
-    const have = im.names(), ignored = new Set(state.ignoredImages || []), LIMIT = 40;
+    const have = im.names(), ignored = new Set(ignoredList), LIMIT = 40;
     let sent = 0, got = 0, errors = 0, left = 0;
     for (const n of im.candidates()) {                       // subir
       if (remote.has(n) || !safeName(n)) continue;
@@ -358,8 +358,9 @@
     if (got) { await waitQuiet(opts.auto); await im.refresh(); im.changed(); }
     return { sent, got, errors };
   }
-  function ignoreImage(n) { state.ignoredImages = Array.from(new Set([].concat(state.ignoredImages || [], [n]))); saveState(); }
-  function unignoreImage(n) { if (state.ignoredImages) { state.ignoredImages = state.ignoredImages.filter(x => x !== n); saveState(); } }
+  const saveIgnored = () => kvSet("ignored", ignoredList).catch(() => {});   // lista GLOBAL del dispositivo: no se pierde al cambiar de versión
+  function ignoreImage(n) { ignoredList = Array.from(new Set(ignoredList.concat([n]))); saveIgnored(); }
+  function unignoreImage(n) { if (ignoredList.includes(n)) { ignoredList = ignoredList.filter(x => x !== n); saveIgnored(); } }
   function imagesChanged() { state.imagesDirty = true; saveState(); schedule(1500); }
   const stampName = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); };
   const today = () => new Date().toISOString().slice(0, 10);
@@ -464,6 +465,8 @@
     try {
       auth = await kvGet("auth") || null;
       state = (await kvGet(stKey())) || {};
+      ignoredList = (await kvGet("ignored")) || [];
+      if (state.ignoredImages && state.ignoredImages.length) { ignoredList = Array.from(new Set(ignoredList.concat(state.ignoredImages))); delete state.ignoredImages; saveIgnored(); }
       status.connected = !!auth; status.lastSyncAt = state.lastSyncAt || null; status.lastResult = state.lastResult || null;
     } catch (e) { console.warn("Sync:", e); }
     notify();
@@ -526,7 +529,7 @@
     paintButton();
   }
 
-  const api = { ignoredImages: () => (state.ignoredImages || []).slice(), clearIgnored: async () => { state.ignoredImages = []; state.imagesDirty = true; await saveState(); return syncNow({}); }, ignoreImage, unignoreImage, imagesChanged, _setNow: f => { nowFn = f; }, EPOCH, ensureStamps, makeBaseline, stampChanges, mergeData, canon, init, ui, syncNow, schedule, connectWithCode, disconnect, status: () => status, onStatus: f => listeners.push(f), _hash: { hList, hTask, hTpl } };
+  const api = { ignoredImages: () => ignoredList.slice(), clearIgnored: async () => { ignoredList = []; state.imagesDirty = true; await saveIgnored(); await saveState(); return auth ? syncNow({}) : null; }, ignoreImage, unignoreImage, imagesChanged, _setNow: f => { nowFn = f; }, EPOCH, ensureStamps, makeBaseline, stampChanges, mergeData, canon, init, ui, syncNow, schedule, connectWithCode, disconnect, status: () => status, onStatus: f => listeners.push(f), _hash: { hList, hTask, hTpl } };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Sync = api;
 })(typeof window !== "undefined" ? window : globalThis);

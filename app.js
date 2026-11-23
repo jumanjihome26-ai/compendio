@@ -376,6 +376,28 @@ async function reduceImage(file){ // reduce a máx. 760 px y a JPEG; devuelve un
   return await blob.arrayBuffer();
 }
 // V8.1 · ilustraciones y sincronización: leer / guardar imágenes del dispositivo
+async function removedFolderNames(){ // imágenes quitadas en Windows: ILUSTRACIONES/_quitadas
+  try{const q=await illusDirHandle.getDirectoryHandle("_quitadas");const n=[];for await(const [k,h] of q.entries())if(h.kind==="file")n.push(k);return n;}catch{return [];}
+}
+async function moveFile(fromDir,toDir,name,keepName){ // copia y, solo si la copia salió bien, quita el original
+  const f=await (await fromDir.getFileHandle(name)).getFile();
+  let target=name;
+  if(!keepName&&await toDir.getFileHandle(target).then(()=>true,()=>false)){target=Date.now()+" "+name;}
+  const w=await (await toDir.getFileHandle(target,{create:true})).createWritable();await w.write(f);await w.close();
+  await fromDir.removeEntry(name);
+}
+async function removeImageFolder(name){
+  const q=await illusDirHandle.getDirectoryHandle("_quitadas",{create:true});
+  await moveFile(illusDirHandle,q,name,false);
+}
+async function restoreRemovedFolder(){
+  const q=await illusDirHandle.getDirectoryHandle("_quitadas");let n=0;
+  for(const name of await removedFolderNames()){
+    if(await illusDirHandle.getFileHandle(name).then(()=>true,()=>false))continue; // no pisar una imagen con ese nombre
+    await moveFile(q,illusDirHandle,name,true);n++;
+  }
+  return n;
+}
 async function readLocalImage(name){
   if(WEB_MODE){const v=await imgGet(name);return v&&v.data?{data:v.data,type:v.type||"image/jpeg"}:null;}
   if(!illusDirHandle)return null;
@@ -418,17 +440,19 @@ async function openIllusPicker(handler){
   if(handler!==undefined)pickHandler=handler;
   await loadIllustrations();
   const cells=[`<div class="illus-cell"><button type="button" class="illus-tile${pendingIllus?"":" sel"}" data-pick=""><span class="illus-img none">∅</span><b>Sin ilustración</b></button></div>`];
-  for(const it of illus.values()){const [x,y]=illusFocus(it.name);cells.push(`<div class="illus-cell"><button type="button" class="illus-tile${it.name===pendingIllus?" sel":""}" data-pick="${escapeHTML(it.name)}"><img class="illus-img" src="${it.url}" alt="" style="object-position:${x}% ${y}%"><b>${escapeHTML(illusLabel(it.name))}</b></button>${it.user?`<button type="button" class="illus-del" data-del="${escapeHTML(it.name)}" title="Quitar de ESTE dispositivo (sigue en Dropbox y se puede recuperar)" aria-label="Quitar imagen de este dispositivo">×</button>`:""}</div>`);}
+  for(const it of illus.values()){const [x,y]=illusFocus(it.name);cells.push(`<div class="illus-cell"><button type="button" class="illus-tile${it.name===pendingIllus?" sel":""}" data-pick="${escapeHTML(it.name)}"><img class="illus-img" src="${it.url}" alt="" style="object-position:${x}% ${y}%"><b>${escapeHTML(illusLabel(it.name))}</b></button>${(WEB_MODE?it.user:true)?`<button type="button" class="illus-del" data-del="${escapeHTML(it.name)}" title="Quitar de ESTE dispositivo (sigue en Dropbox y se puede recuperar)" aria-label="Quitar imagen de este dispositivo">×</button>`:""}</div>`);}
   $("illusGrid").innerHTML=cells.join("");
-  $("illusHelp").textContent=WEB_MODE?"Pulsa «Añadir imagen» para incluir tus propias ilustraciones; se guardan solo en este dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el mismo nombre.":"Puedes añadir imágenes con el botón, o copiarlas directamente a la carpeta ILUSTRACIONES del proyecto (png, jpg, webp) y volver a abrir este selector.";
+  $("illusHelp").textContent=WEB_MODE?"Pulsa «Añadir imagen» para incluir tus propias ilustraciones; se guardan solo en este dispositivo. Para ver el mismo enanito en otro dispositivo, añade allí una imagen con el mismo nombre.":"Puedes añadir imágenes con el botón, o copiarlas a la carpeta ILUSTRACIONES del proyecto (png, jpg, webp) y volver a abrir este selector. La × quita una imagen de este ordenador (la mueve a ILUSTRACIONES\\_quitadas); sigue en Dropbox y en los demás dispositivos.";
   $("illusGrid").querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{const v=b.dataset.pick,h=pickHandler;if(!h){pendingIllus=v;paintIllusPreview();}$("illusDialog").close();if(h)h(v);});
-  $("illusGrid").querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const n=b.dataset.del;if(!confirm(`¿Quitar la imagen «${n}» de ESTE dispositivo?\n\nSigue guardada en Dropbox y en los demás dispositivos, y la puedes recuperar con «Recuperar quitadas». Mientras tanto, las listas que la usen mostrarán un círculo vacío aquí.`))return;try{await imgDel(n);if(window.Sync)Sync.ignoreImage(n);}catch(err){alert("No se pudo quitar: "+err.message);}openIllusPicker();});
-  const ig=(window.Sync&&Sync.ignoredImages)?Sync.ignoredImages():[];
-  $("illusRestore").hidden=!ig.length;$("illusRestore").textContent="↺ Recuperar quitadas ("+ig.length+")";
+  $("illusGrid").querySelectorAll("[data-del]").forEach(b=>b.onclick=async e=>{e.stopPropagation();const n=b.dataset.del;const where=WEB_MODE?"de ESTE dispositivo":"de ESTE ordenador (se mueve a la carpeta ILUSTRACIONES\\_quitadas; no se borra)";
+    if(!confirm(`¿Quitar la imagen «${n}» ${where}?\n\nSigue guardada en Dropbox y en los demás dispositivos, y la puedes recuperar con «Recuperar quitadas». Mientras tanto, las listas que la usen mostrarán un círculo vacío aquí.`))return;
+    try{if(WEB_MODE)await imgDel(n);else await removeImageFolder(n);if(window.Sync)Sync.ignoreImage(n);}catch(err){alert("No se pudo quitar: "+err.message);}openIllusPicker();});
+  const nRem=WEB_MODE?((window.Sync&&Sync.ignoredImages)?Sync.ignoredImages().length:0):(await removedFolderNames()).length;
+  $("illusRestore").hidden=!nRem;$("illusRestore").textContent="↺ Recuperar quitadas ("+nRem+")";
   if(!$("illusDialog").open)$("illusDialog").showModal();
 }
 $("illusDialog").addEventListener("close",()=>{pickHandler=null;});
-$("illusRestore").onclick=async()=>{$("illusRestore").disabled=true;try{await Sync.clearIgnored();}catch(e){/* se muestra en la ventana de Dropbox */}$("illusRestore").disabled=false;toast("Imágenes quitadas: se recuperan de Dropbox.");openIllusPicker();};
+$("illusRestore").onclick=async()=>{$("illusRestore").disabled=true;try{if(!WEB_MODE)await restoreRemovedFolder();await loadIllustrations();if(window.Sync)await Sync.clearIgnored();}catch(e){console.warn(e);}$("illusRestore").disabled=false;toast("Imágenes quitadas: recuperadas.");openIllusPicker();};
 $("illusChoose").onclick=()=>openIllusPicker(null);
 $("illusPreview").onclick=()=>openIllusPicker(null);
 $("illusClear").onclick=()=>{pendingIllus="";paintIllusPreview();};

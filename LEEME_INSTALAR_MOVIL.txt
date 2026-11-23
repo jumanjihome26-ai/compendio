@@ -1,4 +1,4 @@
-EL COMPENDIO DEL BALUARTE · V8.2 · VERSIÓN WEB PARA ANDROID E iPAD
+EL COMPENDIO DEL BALUARTE · V8.3 · VERSIÓN WEB PARA ANDROID E iPAD
 ================================================================
 
 QUÉ ES
@@ -95,4 +95,14 @@ V8.2 · DISEÑO DE ILUSTRACIONES
 - Círculo vacío pulsable: en la lista abierta (círculo punteado «＋») y en «Nueva lista» / «Editar nombre» (círculo junto a «Sin ilustración»). Al pulsarlo se abre el selector de imágenes. Desde la lista abierta, la elección se guarda al momento. «＋ Añadir imagen» desde ahí también la asigna directamente.
 - Nuevo botón «↺ Recuperar quitadas (N)» en el selector (móvil/iPad): vuelve a descargar de Dropbox las imágenes que quitaste con la ×. La × solo quita la imagen de ESE dispositivo (sigue en Dropbox y en los demás).
 - Sin cambios en los datos ni en Dropbox. Windows: copia nueva = seleccionar su carpeta principal e importar (como siempre). Web: subir todo a GitHub y abrir dos veces con conexión.
+
+
+========================================================================
+V8.3 · QUITAR IMÁGENES TAMBIÉN EN WINDOWS
+========================================================================
+- Windows: cada imagen del selector tiene ahora la × (también las incluidas). Al pulsarla, la imagen se MUEVE a la carpeta ILUSTRACIONES\_quitadas (no se borra), sigue en Dropbox y en los demás dispositivos, y no se vuelve a descargar aquí.
+- «↺ Recuperar quitadas (N)» la devuelve a ILUSTRACIONES y vuelve a bajar lo que estuviera quitado.
+- Si borras una imagen desde el Explorador (sin usar la ×), se volverá a descargar de Dropbox en la siguiente sincronización: usa la ×.
+- La lista de imágenes quitadas ahora se conserva aunque cambies de versión.
+- Windows: copia nueva = seleccionar su carpeta principal e importar (como siempre). Web: subir todo a GitHub y abrir dos veces con conexión.
 
