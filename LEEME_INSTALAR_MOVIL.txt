@@ -1,4 +1,4 @@
-EL COMPENDIO DEL BALUARTE · V8.3 · VERSIÓN WEB PARA ANDROID E iPAD
+EL COMPENDIO DEL BALUARTE · V9 · VERSIÓN WEB PARA ANDROID E iPAD
 ================================================================
 
 QUÉ ES
@@ -105,4 +105,23 @@ V8.3 · QUITAR IMÁGENES TAMBIÉN EN WINDOWS
 - Si borras una imagen desde el Explorador (sin usar la ×), se volverá a descargar de Dropbox en la siguiente sincronización: usa la ×.
 - La lista de imágenes quitadas ahora se conserva aunque cambies de versión.
 - Windows: copia nueva = seleccionar su carpeta principal e importar (como siempre). Web: subir todo a GitHub y abrir dos veces con conexión.
+
+
+========================================================================
+V9 · DROPBOX CENTRALIZADO (una carpeta por tipo y una subcarpeta por aplicación)
+========================================================================
+- Nueva estructura en Dropbox (dentro de la carpeta de la app):
+    DATOS/Compendio/Compendio-del-Baluarte.json    (los datos sincronizados)
+    ILUSTRACIONES/Compendio/                        (imágenes)
+    EXPORTACION/Compendio/YEISON_Compendio_*.json   (exportaciones)
+    BACKUP/Compendio/BK_Compendio-del-Baluarte_*.json (copias)
+  Otras aplicaciones usarían su propia subcarpeta (p. ej. ILUSTRACIONES/Huella) con la misma app de Dropbox. Dropbox crea las carpetas solo al subir el primer archivo.
+- POR DEFECTO, con Dropbox conectado, «Exportar» y «Copia» guardan en Dropbox, sin elegir ruta y sin descargas ni menú de compartir. En el botón ☁ Dropbox puedes cambiar el destino: Dropbox (recomendado) / este dispositivo (Windows: carpetas EXPORTACION y BACKUP del proyecto; móvil/iPad: descarga o compartir) / los dos sitios. Se recuerda en cada dispositivo.
+- Si Dropbox no responde o no hay conexión, la exportación se guarda en el dispositivo y se avisa: nunca se pierde.
+- «Restaurar» muestra ahora también las copias (BACKUP) y exportaciones (EXPORTACION) guardadas en Dropbox, además de «Elegir un archivo del dispositivo…».
+- Sin Dropbox conectado todo funciona como antes (local).
+- MIGRACIÓN AUTOMÁTICA Y SEGURA: el archivo de datos de la V8 estaba en la raíz de Dropbox (Compendio-del-Baluarte.json). La primera vez, cada dispositivo lo fusiona con el nuevo y sube el resultado a DATOS/Compendio. El archivo antiguo NO se toca ni se borra (queda como copia). Las imágenes que ya estaban en ILUSTRACIONES/ se suben solas a ILUSTRACIONES/Compendio desde los dispositivos que las tienen; las antiguas no se borran.
+- ACTUALIZA TODOS LOS DISPOSITIVOS antes de seguir editando: un dispositivo con la V8 seguiría sincronizando con la ubicación antigua. Al actualizarlo después, sus cambios se fusionan igualmente.
+- Las copias automáticas «ANTES_DE_…» (migrar, sincronizar, restaurar) siguen guardándose en el propio dispositivo.
+- Windows: copia nueva = seleccionar su carpeta principal e importar. Web: subir todo a GitHub y abrir dos veces con conexión. La conexión con Dropbox se mantiene.
 

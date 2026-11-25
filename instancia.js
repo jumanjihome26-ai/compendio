@@ -1,3 +1,3 @@
 // Identificador de ESTA copia del Compendio (lo usa la app para no conectarse a la carpeta de otra versión).
 // No lo borres ni lo edites.
-window.COMPENDIO_INSTANCE="V8_3-a94e2d6c08";
+window.COMPENDIO_INSTANCE="V9_0-6d12f8b3e5";

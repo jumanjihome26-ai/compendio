@@ -14,7 +14,13 @@
   const EPOCH = "1970-01-01T00:00:00.000Z";   // marca de los datos anteriores a V8
   const TOMB_DAYS = 90;                       // los borrados se recuerdan 90 días
   const APP_KEY = "d9qdjwitsfvtlko";          // identificador público de la app de Dropbox
-  const FILE_PATH = "/Compendio-del-Baluarte.json";
+  // Estructura en Dropbox (V9): una carpeta por tipo y, dentro, una subcarpeta por aplicación.
+  // Otras aplicaciones de Jumanji Home usarían su propia subcarpeta (p. ej. ILUSTRACIONES/Huella) con la misma app de Dropbox.
+  const APP_DIR = "Compendio";
+  const FILE_PATH = "/DATOS/" + APP_DIR + "/Compendio-del-Baluarte.json";
+  const LEGACY_PATH = "/Compendio-del-Baluarte.json";          // ubicación de las versiones V8 (se lee una vez y NO se borra)
+  const ILUS_DIR = "/ILUSTRACIONES/" + APP_DIR;
+  const DIRS = { EXPORTACION: "/EXPORTACION/" + APP_DIR + "/", BACKUP: "/BACKUP/" + APP_DIR + "/" };
   const norm = v => String(v || "").trim().normalize("NFC").toLocaleLowerCase("es");
   const clone = o => JSON.parse(JSON.stringify(o));
   let nowFn = () => new Date().toISOString();
@@ -204,7 +210,7 @@
   /* ---------------------------------------------------------------
      PARTE 2 · DROPBOX
      --------------------------------------------------------------- */
-  let host = null, auth = null, ignoredList = [], state = {}, running = null, rerun = false, timer = null, kvdb = null, listeners = [];
+  let host = null, auth = null, legacyFlag = false, dest = "dropbox", ignoredList = [], state = {}, running = null, rerun = false, timer = null, kvdb = null, listeners = [];
   const status = { connected: false, busy: false, error: null, pending: false, lastSyncAt: null, lastResult: null };
 
   function kvOpen() {
@@ -292,10 +298,10 @@
     throw mkErr("api", "Dropbox respondió con un error (" + res.status + "): " + (summary || "sin detalles"));
   }
   const argHeader = o => JSON.stringify(o).replace(/[\u007f-\uffff]/g, c => "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4));
-  async function remoteGet() {
+  async function remoteGet(path) {
     let meta;
     try {
-      const r = await dbxFetch("https://api.dropboxapi.com/2/files/get_metadata", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: FILE_PATH }) });
+      const r = await dbxFetch("https://api.dropboxapi.com/2/files/get_metadata", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: path || FILE_PATH }) });
       meta = await r.json();
     } catch (e) { if (e.code === "not_found") return null; throw e; }
     const r2 = await dbxFetch("https://content.dropboxapi.com/2/files/download", { method: "POST", headers: { "Dropbox-API-Arg": argHeader({ path: "rev:" + meta.rev }) } });
@@ -316,7 +322,7 @@
   async function listRemoteImages() {
     const out = new Map();
     let r;
-    try { r = await dbxFetch("https://api.dropboxapi.com/2/files/list_folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: "/ILUSTRACIONES", recursive: false, limit: 2000 }) }); }
+    try { r = await dbxFetch("https://api.dropboxapi.com/2/files/list_folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: ILUS_DIR, recursive: false, limit: 2000 }) }); }
     catch (e) { if (e.code === "not_found") return out; throw e; }
     let j = await r.json();
     for (;;) {
@@ -340,7 +346,7 @@
       if (sent >= LIMIT) { left++; continue; }
       try {
         const f = await im.read(n); if (!f) continue;
-        await remotePut(f.data, null, "/ILUSTRACIONES/" + n, false); sent++; remote.set(n, {});
+        await remotePut(f.data, null, ILUS_DIR + "/" + n, false); sent++; remote.set(n, {});
       } catch (e) { if (e.code === "network" || e.code === "reconnect") throw e; if (e.code !== "conflict") errors++; }
     }
     const refs = new Set(im.referenced());                    // bajar (primero las que usan las listas)
@@ -348,7 +354,7 @@
     for (const n of todo) {
       if (got >= LIMIT) { left++; continue; }
       try {
-        const r = await dbxFetch("https://content.dropboxapi.com/2/files/download", { method: "POST", headers: { "Dropbox-API-Arg": argHeader({ path: "/ILUSTRACIONES/" + n }) } });
+        const r = await dbxFetch("https://content.dropboxapi.com/2/files/download", { method: "POST", headers: { "Dropbox-API-Arg": argHeader({ path: ILUS_DIR + "/" + n }) } });
         const buf = await r.arrayBuffer();
         if (await im.write(n, buf, mimeOf(n))) got++;
       } catch (e) { if (e.code === "network" || e.code === "reconnect") throw e; errors++; }
@@ -362,6 +368,28 @@
   function ignoreImage(n) { ignoredList = Array.from(new Set(ignoredList.concat([n]))); saveIgnored(); }
   function unignoreImage(n) { if (ignoredList.includes(n)) { ignoredList = ignoredList.filter(x => x !== n); saveIgnored(); } }
   function imagesChanged() { state.imagesDirty = true; saveState(); schedule(1500); }
+  /* ---------- Exportaciones y copias en Dropbox ---------- */
+  async function putFile(kind, filename, text) {
+    if (!auth) throw mkErr("no-auth", "Dropbox no está conectado en este dispositivo.");
+    if (typeof navigator !== "undefined" && navigator.onLine === false) throw mkErr("network", "Sin conexión a Internet.");
+    if (!DIRS[kind] || !/^[^\\/:*?"<>|]+\.json$/.test(filename)) throw mkErr("bad-name", "Nombre de archivo no válido.");
+    const m = await remotePut(text, null, DIRS[kind] + filename, true);
+    return String(m.path_display || DIRS[kind] + filename).replace(/^\//, "");
+  }
+  async function listFiles(kind, max) {
+    if (!auth || !DIRS[kind]) return [];
+    let r;
+    try { r = await dbxFetch("https://api.dropboxapi.com/2/files/list_folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: DIRS[kind].replace(/\/$/, ""), recursive: false, limit: 500 }) }); }
+    catch (e) { if (e.code === "not_found") return []; throw e; }
+    const j = await r.json();
+    return (j.entries || []).filter(e => e[".tag"] === "file" && /\.json$/i.test(e.name)).map(e => e.name).sort().reverse().slice(0, max || 8);
+  }
+  async function getFileText(kind, name) {
+    if (!DIRS[kind] || /[\\/]/.test(name)) throw mkErr("bad-name", "Nombre no válido.");
+    const r = await dbxFetch("https://content.dropboxapi.com/2/files/download", { method: "POST", headers: { "Dropbox-API-Arg": argHeader({ path: DIRS[kind] + name }) } });
+    return await r.text();
+  }
+  async function setDest(v) { if (v === "dropbox" || v === "local" || v === "both") { dest = v; await kvSet("dest", v).catch(() => {}); notify(); } }
   const stampName = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); };
   const today = () => new Date().toISOString().slice(0, 10);
 
@@ -386,14 +414,24 @@
       for (let attempt = 0; attempt < 4; attempt++) {
         host.stamp();
         const local = clone(host.get());
-        const remote = await remoteGet();
-        let remoteData = null, merge;
+        const remote = await remoteGet(FILE_PATH);
+        let remoteData = null, baseData = null, merge, legacyChecked = legacyFlag;
         if (remote) {
           try { remoteData = JSON.parse(remote.text); } catch (e) { throw mkErr("bad-remote", "El archivo de Dropbox no es un JSON válido. No se ha modificado."); }
           if (!remoteData || !Array.isArray(remoteData.lists)) throw mkErr("bad-remote", "El archivo de Dropbox no tiene la estructura del Compendio. No se ha modificado.");
           remoteData.templates = Array.isArray(remoteData.templates) ? remoteData.templates : [];
           ensureStamps(remoteData);
-          merge = mergeData(local, remoteData);
+        }
+        baseData = remoteData;
+        if (!legacyFlag) {   // versiones V8: el archivo estaba en /Compendio-del-Baluarte.json. Se fusiona UNA vez (sin tocarlo ni borrarlo)
+          try {
+            const leg = await remoteGet(LEGACY_PATH);
+            if (leg) { const ld = JSON.parse(leg.text); if (ld && Array.isArray(ld.lists)) { ld.templates = Array.isArray(ld.templates) ? ld.templates : []; ensureStamps(ld); baseData = baseData ? mergeData(baseData, ld).data : ld; } }
+            legacyChecked = true;
+          } catch (e) { if (e.code === "network" || e.code === "reconnect") throw e; if (e.code === "not_found" || e instanceof SyntaxError) legacyChecked = true; }
+        }
+        if (baseData) {
+          merge = mergeData(local, baseData);
         } else {
           merge = { data: Object.assign({ format: "compendio-baluarte", version: 1, schema: 2, exportedAt: nowIso() }, clone({ lists: local.lists, templates: local.templates || [], deleted: local.deleted || [] })), stats: {} };
         }
@@ -402,7 +440,7 @@
           // copia en Dropbox (máx. 1 al día EN TOTAL: el día de la última copia viaja dentro del propio archivo) de lo que había antes de cambiarlo
           const doneDay = remoteData && remoteData.lastRemoteBackup;
           if (remote && doneDay !== today()) {
-            try { await remotePut(remote.text, null, "/BACKUP/BK_Compendio-del-Baluarte_" + stampName() + ".json", true); merge.data.lastRemoteBackup = today(); } catch (e) { if (e.code === "network" || e.code === "reconnect") throw e; }
+            try { await remotePut(remote.text, null, DIRS.BACKUP + "BK_Compendio-del-Baluarte_" + stampName() + ".json", true); merge.data.lastRemoteBackup = today(); } catch (e) { if (e.code === "network" || e.code === "reconnect") throw e; }
           } else if (doneDay) merge.data.lastRemoteBackup = doneDay;
           try { const m = await remotePut(JSON.stringify(merge.data, null, 2), remote ? remote.rev : null); state.rev = m.rev; }
           catch (e) { if (e.code === "conflict" && attempt < 3) continue; throw e; }
@@ -422,6 +460,7 @@
         }
         if (canon(cur) !== canon(local) || canon(fin.data) !== canon(merge.data)) rerun = true;   // el usuario cambió algo durante la sincronización
         state.firstDone = true; state.lastSyncAt = Date.now();
+        if (legacyChecked && !legacyFlag) { legacyFlag = true; kvSet("legacyDone", true).catch(() => {}); }
         result = { stats: remote ? fin.stats : { firstUpload: true }, applied: differs, uploaded: remoteChanged };
         try { result.images = await syncImages(opts || {}); }       // las imágenes nunca impiden que los datos se sincronicen
         catch (e) { if (e.code === "network" || e.code === "reconnect") throw e; state.imageError = "Imágenes: " + e.message; }
@@ -466,6 +505,8 @@
       auth = await kvGet("auth") || null;
       state = (await kvGet(stKey())) || {};
       ignoredList = (await kvGet("ignored")) || [];
+      legacyFlag = !!(await kvGet("legacyDone"));
+      const dv = await kvGet("dest"); if (dv === "local" || dv === "both" || dv === "dropbox") dest = dv;
       if (state.ignoredImages && state.ignoredImages.length) { ignoredList = Array.from(new Set(ignoredList.concat(state.ignoredImages))); delete state.ignoredImages; saveIgnored(); }
       status.connected = !!auth; status.lastSyncAt = state.lastSyncAt || null; status.lastResult = state.lastResult || null;
     } catch (e) { console.warn("Sync:", e); }
@@ -498,7 +539,7 @@
       if (!status.connected) {
         const draft = ($("syncCode") || {}).value || "";
         let p = null; try { p = await getPkce(); } catch (e) { /* noop */ }
-        body.innerHTML = '<p class="sync-p">Conecta tu Dropbox para tener tus listas al día en todos tus dispositivos. La app solo usa su propia carpeta dentro de <b>Apps</b> de tu Dropbox. Sin conexión a Internet todo sigue funcionando y se sincroniza al volver.</p>' +
+        body.innerHTML = '<p class="sync-p">Conecta tu Dropbox para tener tus listas al día en todos tus dispositivos y guardar ahí, por defecto, tus exportaciones y copias de seguridad. La app solo usa su propia carpeta dentro de <b>Apps</b> de tu Dropbox. Sin conexión a Internet todo sigue funcionando y se sincroniza al volver. Mientras no conectes, las exportaciones y copias se guardan en este dispositivo.</p>' +
           '<ol class="sync-steps"><li>Pulsa <b>Abrir Dropbox</b>: se abrirá una pestaña nueva. Inicia sesión y pulsa <b>Permitir</b>.</li><li>Dropbox te mostrará un <b>código</b>. Cópialo y pégalo aquí.</li></ol>' +
           (p ? '<a class="primary-btn sync-open" id="syncAuthLink" href="' + p.url + '" target="_blank" rel="noopener">Abrir Dropbox…</a>' : '<p class="sync-err">No se pudo preparar la conexión en este navegador.</p>') +
           '<label class="sync-lab">Código de Dropbox</label><input id="syncCode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí el código">' +
@@ -516,8 +557,12 @@
           (status.lastResult ? '<p class="sync-p sync-res">' + esc(status.lastResult) + '</p>' : "") + (state.imageError ? '<p class="sync-p sync-small">' + esc(state.imageError) + '</p>' : "") +
           (status.error ? '<p class="sync-err">' + esc(status.error) + '</p>' : "") +
           (status.pending && !status.error ? '<p class="sync-p">Hay cambios pendientes: se enviarán cuando haya conexión.</p>' : "") +
-          '<p class="sync-p sync-small">Se sincroniza sola al abrir la app, unos segundos después de cada cambio y al recuperar la conexión. Las copias de seguridad automáticas (máx. 1 al día) van a la carpeta BACKUP de Dropbox.</p>' +
+          '<div class="sync-dest"><span class="sync-lab">Exportaciones y copias de seguridad</span>' +
+          [["dropbox", "Guardar en Dropbox (recomendado)"], ["local", "Guardar en este dispositivo"], ["both", "En los dos sitios"]].map(o => '<label class="sync-radio"><input type="radio" name="syncDest" value="' + o[0] + '"' + (dest === o[0] ? " checked" : "") + '> ' + o[1] + '</label>').join("") +
+          '<p class="sync-p sync-small">En Dropbox: EXPORTACION/' + APP_DIR + ' y BACKUP/' + APP_DIR + ' (las ilustraciones, en ILUSTRACIONES/' + APP_DIR + ' y los datos, en DATOS/' + APP_DIR + '). «En este dispositivo»: Windows usa las carpetas del proyecto; móvil/iPad descarga o comparte el archivo. Si Dropbox no responde, se guarda en este dispositivo.</p></div>' +
+          '<p class="sync-p sync-small">Se sincroniza sola al abrir la app, unos segundos después de cada cambio y al recuperar la conexión. Las copias de seguridad automáticas (máx. 1 al día) van a BACKUP/' + APP_DIR + ' en Dropbox.</p>' +
           '<div class="modal-actions"><button type="button" class="quiet-btn" id="syncDisc">Desconectar este dispositivo</button><button type="button" class="primary-btn" id="syncNowBtn">Sincronizar ahora</button></div>';
+        body.querySelectorAll('input[name="syncDest"]').forEach(r => { r.onchange = () => setDest(r.value); });
         $("syncNowBtn").onclick = async () => { $("syncNowBtn").disabled = true; try { await syncNow({}); } catch (e) { /* se muestra en el estado */ } paintDialog(); };
         $("syncDisc").onclick = async () => { if (confirm("¿Desconectar Dropbox en ESTE dispositivo?\n\nTus listas se quedan aquí y en Dropbox; solo se detiene la sincronización de este dispositivo.")) { await disconnect(); paintDialog(); } };
       }
@@ -529,7 +574,7 @@
     paintButton();
   }
 
-  const api = { ignoredImages: () => ignoredList.slice(), clearIgnored: async () => { ignoredList = []; state.imagesDirty = true; await saveIgnored(); await saveState(); return auth ? syncNow({}) : null; }, ignoreImage, unignoreImage, imagesChanged, _setNow: f => { nowFn = f; }, EPOCH, ensureStamps, makeBaseline, stampChanges, mergeData, canon, init, ui, syncNow, schedule, connectWithCode, disconnect, status: () => status, onStatus: f => listeners.push(f), _hash: { hList, hTask, hTpl } };
+  const api = { putFile, listFiles, getFileText, dest: () => dest, setDest, isConnected: () => !!auth, ignoredImages: () => ignoredList.slice(), clearIgnored: async () => { ignoredList = []; state.imagesDirty = true; await saveIgnored(); await saveState(); return auth ? syncNow({}) : null; }, ignoreImage, unignoreImage, imagesChanged, _setNow: f => { nowFn = f; }, EPOCH, ensureStamps, makeBaseline, stampChanges, mergeData, canon, init, ui, syncNow, schedule, connectWithCode, disconnect, status: () => status, onStatus: f => listeners.push(f), _hash: { hList, hTask, hTpl } };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.Sync = api;
 })(typeof window !== "undefined" ? window : globalThis);

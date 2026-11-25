@@ -1,7 +1,7 @@
 // Service worker de EL COMPENDIO DEL BALUARTE (V6).
 // Solo guarda en caché los archivos de la APLICACIÓN para que abra sin conexión.
 // Nunca toca los datos del usuario (están en IndexedDB, que el service worker no lee ni borra).
-const CACHE = "compendio-baluarte-v8-3";
+const CACHE = "compendio-baluarte-v9-0";
 const SHELL = ["./", "index.html", "instancia.js", "sync.js", "app.js", "styles.css", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "recursos/jh-icono-compendio.webp", "recursos/alma.webp", "recursos/fondo-brujula.webp", "ilustraciones/ilustraciones.json", "ilustraciones/ALMA.webp", "ilustraciones/MCGIVER.webp", "ilustraciones/MECARTI.webp", "ilustraciones/PLANI.webp", "ilustraciones/PYTHI.webp", "ilustraciones/RARITO.webp", "ilustraciones/REGISTRO-DE-LECTURAS.webp", "ilustraciones/REPITE.webp", "ilustraciones/RESOPLON.webp", "ilustraciones/VOCECITA.webp"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

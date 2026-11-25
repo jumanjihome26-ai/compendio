@@ -97,19 +97,40 @@ async function startWebMode(){
     console.error(err);
   }
 }
-async function webExport(){
+// ===== V9 · Exportaciones y copias: por defecto a Dropbox (EXPORTACION/Compendio y BACKUP/Compendio) =====
+function destMode(){return(window.Sync&&Sync.isConnected())?Sync.dest():"local";}
+function shortErr(e){return String((e&&e.message)||e||"").replace(/\s+/g," ").slice(0,90);}
+async function doExport(){
   const filename=`YEISON_Compendio_${stamp()}.json`;
-  const r=await deliverFile(filename,JSON.stringify(currentData(),null,2));
-  if(r==="cancelled")return;
-  toast("¡EXPORTACIÓN COMPLETADA!\n"+(r==="shared"?"Archivo compartido: ":"Archivo descargado en tu dispositivo: ")+filename);
+  const text=JSON.stringify(currentData(),null,2);
+  const mode=destMode();
+  const saveLocal=async()=>{
+    if(WEB_MODE){const r=await deliverFile(filename,text);return r==="cancelled"?"cancelled":(r==="shared"?"Archivo compartido: ":"Archivo descargado en tu dispositivo: ")+filename;}
+    if(!await ensureConnected())return null;
+    return "Archivo guardado en EXPORTACION: "+await createFileInDirectory(exportDirHandle,filename,text);
+  };
+  let localMsg=null,dbxPath=null,dbxErr=null;
+  if(mode==="local"||mode==="both"){localMsg=await saveLocal();if(localMsg==="cancelled"&&mode==="local")return;}   // lo local primero: iOS exige el toque del usuario
+  if(mode==="dropbox"||mode==="both"){try{dbxPath=await Sync.putFile("EXPORTACION",filename,text);}catch(e){dbxErr=e;}}
+  if(mode==="dropbox"&&dbxErr)localMsg=await saveLocal();                                                         // Dropbox no responde: nunca se pierde la exportación
+  toast("¡EXPORTACIÓN COMPLETADA!"+(dbxPath?"\nGuardada en Dropbox: "+dbxPath:"")+(localMsg&&localMsg!=="cancelled"?"\n"+localMsg:"")+(dbxErr?"\n(Dropbox no disponible: "+shortErr(dbxErr)+")":""));
 }
-async function webBackup(){
+async function doBackup(){
   const name=`BK_Compendio-del-Baluarte_${stamp()}.json`;
-  const raw=JSON.stringify(currentData(),null,2);
-  const delivery=deliverFile(name,raw);
-  await idbPut("backups",name,raw);
-  const r=await delivery;
-  toast("¡COPIA DE SEGURIDAD COMPLETADA!\nCopia interna guardada: "+name+(r==="cancelled"?"":(r==="shared"?"\nArchivo compartido.":"\nArchivo descargado en tu dispositivo.")));
+  const text=JSON.stringify(currentData(),null,2);
+  const mode=destMode();
+  let localMsg=null,dbxPath=null,dbxErr=null,delivery=null;
+  if(WEB_MODE){
+    if(mode==="local"||mode==="both")delivery=deliverFile(name,text);   // se lanza primero (iOS) y se espera después
+    await idbPut("backups",name,text);                                  // copia interna: es la que aparece en «Restaurar»
+    localMsg="Copia interna guardada en el dispositivo: "+name;
+    if(delivery){const r=await delivery;if(r!=="cancelled")localMsg+=(r==="shared"?"\nArchivo compartido.":"\nArchivo descargado en tu dispositivo.");}
+  }else if(mode==="local"||mode==="both"){
+    if(await ensureConnected())localMsg="Archivo guardado en BACKUP: "+await backupCurrentMaster();
+  }
+  if(mode==="dropbox"||mode==="both"){try{dbxPath=await Sync.putFile("BACKUP",name,text);}catch(e){dbxErr=e;}}
+  if(!WEB_MODE&&mode==="dropbox"&&dbxErr&&await ensureConnected())localMsg="Archivo guardado en BACKUP: "+await backupCurrentMaster();
+  toast("¡COPIA DE SEGURIDAD COMPLETADA!"+(dbxPath?"\nGuardada en Dropbox: "+dbxPath:"")+(localMsg?"\n"+localMsg:"")+(dbxErr?"\n(Dropbox no disponible: "+shortErr(dbxErr)+")":""));
 }
 function chooseWebRestoreSource(){
   // V7.1 · iPad/iOS solo abre el selector de archivos si input.click() ocurre DENTRO del toque del usuario
@@ -123,14 +144,21 @@ function chooseWebRestoreSource(){
     input.onchange=()=>{const f=input.files[0]||null;finish(f);if(d.open)d.close();};
     d.appendChild(input);
     const fileBtn=document.createElement("button");fileBtn.type="button";fileBtn.className="menu-opt";fileBtn.textContent="Elegir un archivo del dispositivo…";
-    fileBtn.onclick=()=>input.click(); // síncrono, dentro del gesto
+    fileBtn.onclick=WEB_MODE?()=>input.click():async()=>{const f=await chooseJSONFile("restore");if(f){finish(f);d.close();}}; // síncrono, dentro del gesto
     box.appendChild(fileBtn);
-    idbKeys("backups").then(keys=>{
+    (WEB_MODE?idbKeys("backups"):Promise.resolve([])).then(keys=>{
       keys.sort().reverse().slice(0,8).forEach(k=>{
         const b=document.createElement("button");b.type="button";b.className="menu-opt";b.textContent="Copia interna: "+k.replace(/^BK_/,"").replace(/\.json$/,"");
         b.onclick=()=>{finish({name:k,text:()=>idbGet("backups",k)});d.close();};box.appendChild(b);
       });
     }).catch(()=>{});
+    if(window.Sync&&Sync.isConnected()){   // copias y exportaciones guardadas en Dropbox (se cargan sin bloquear la apertura)
+      const addDbx=(kind,label)=>Sync.listFiles(kind,8).then(names=>names.forEach(n=>{
+        const b=document.createElement("button");b.type="button";b.className="menu-opt";b.textContent="Dropbox · "+label+": "+n.replace(/^BK_/,"").replace(/\.json$/,"");
+        b.onclick=()=>{finish({name:"Dropbox/"+label+"/"+n,text:()=>Sync.getFileText(kind,n)});d.close();};box.appendChild(b);
+      })).catch(()=>{});
+      addDbx("BACKUP","BACKUP").then(()=>addDbx("EXPORTACION","EXPORTACION"));
+    }
     d.onclose=()=>{finish(null);input.remove();};
     d.onclick=e=>{if(e.target!==d)return;const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();};
     $("menuCancel").onclick=()=>d.close();
@@ -569,11 +597,11 @@ async function saveJSONToDirectory(dirHandle,filename,data){
   return await createFileInDirectory(dirHandle,filename,content);
 }
 $("exportBtn").onclick=async()=>{
-  try{if(WEB_MODE){await webExport();return;}if(!await ensureConnected())return;const filename=await saveJSONToDirectory(exportDirHandle,`YEISON_Compendio_${stamp()}.json`,currentData());toast("¡EXPORTACIÓN COMPLETADA!\nArchivo guardado en EXPORTACION: "+filename);}
+  try{await doExport();}
   catch(e){alert("No se pudo exportar: "+e.message);}
 };
 $("backupBtn").onclick=async()=>{
-  try{if(WEB_MODE){await webBackup();return;}if(!await ensureConnected())return;const filename=await backupCurrentMaster();toast("¡COPIA DE SEGURIDAD COMPLETADA!\nArchivo guardado en BACKUP: "+filename);}
+  try{await doBackup();}
   catch(e){alert("No se pudo crear el BACKUP: "+e.message);}
 };
 async function chooseJSONFile(kind){
@@ -602,7 +630,7 @@ $("importBtn").onclick=async()=>{
   catch(err){alert("No se pudo abrir el archivo para importar: "+err.message);}
 };
 $("restoreBtn").onclick=async()=>{
-  try{const file=WEB_MODE?await chooseWebRestoreSource():await chooseJSONFile("restore");if(file)await processRestoreFile(file);}
+  try{const file=(WEB_MODE||(window.Sync&&Sync.isConnected()))?await chooseWebRestoreSource():await chooseJSONFile("restore");if(file)await processRestoreFile(file);}
   catch(err){alert("No se pudo abrir la copia para restaurar: "+err.message);}
 };
 async function processImportFile(file){
